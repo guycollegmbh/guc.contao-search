@@ -1,0 +1,47 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        public: false
+
+    Guc\SearchBundle\:
+        resource: '../src/'
+        exclude:
+            - '../src/DependencyInjection/'
+            - '../src/GucSearchBundle.php'
+            - '../src/ContaoManagerPlugin.php'
+            - '../src/Module/'
+
+    Guc\SearchBundle\Repository\SearchRepository:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+
+    Guc\SearchBundle\Indexer\PageIndexer:
+        tags: ['guc.search.indexer']
+
+    Guc\SearchBundle\Indexer\FileIndexer:
+        tags: ['guc.search.indexer']
+
+    Guc\SearchBundle\Indexer\NewsIndexer:
+        tags: ['guc.search.indexer']
+
+    Guc\SearchBundle\Indexer\EventIndexer:
+        tags: ['guc.search.indexer']
+
+    Guc\SearchBundle\Indexer\CustomTableIndexer:
+        tags: ['guc.search.indexer']
+
+    Guc\SearchBundle\Command\BuildSearchIndexCommand:
+        arguments:
+            $indexers: !tagged_iterator guc.search.indexer
+        tags: ['console.command']
+
+    Guc\SearchBundle\Controller\SearchApiController:
+        public: true
+        tags: ['controller.service_arguments']
+
+    Guc\SearchBundle\Controller\Backend\SearchIndexController:
+        public: true
+        tags: ['controller.service_arguments']
+        arguments:
+            $indexers: !tagged_iterator guc.search.indexer

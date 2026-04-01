@@ -1,0 +1,19 @@
+{% extends "@Contao/frontend_module/_base.html.twig" %}
+
+{% block content %}
+<div class="guc-search"
+     data-api-url="{{ apiUrl }}"
+     data-min-chars="{{ minChars }}"
+     data-debounce="{{ debounce }}"
+     data-lang="{{ language }}">
+    <div class="guc-search__field">
+        <input type="search"
+               class="guc-search__input"
+               placeholder="{{ placeholder }}"
+               autocomplete="off"
+               aria-label="{{ placeholder }}">
+        <button class="guc-search__clear" type="button" hidden aria-label="Suche löschen">&times;</button>
+    </div>
+    <div class="guc-search__results" hidden role="region" aria-live="polite" aria-label="Suchergebnisse"></div>
+</div>
+{% endblock %}

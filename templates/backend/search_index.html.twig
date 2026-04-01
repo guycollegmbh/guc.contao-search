@@ -1,0 +1,50 @@
+{% extends '@ContaoCore/Backend/be_page.html.twig' %}
+
+{% block headline %}GUC Suchindex{% endblock %}
+
+{% block main %}
+<div class="tl_listing_container">
+
+    {% if message %}
+        <div class="tl_confirm"><p>{{ message|e }}</p></div>
+    {% endif %}
+
+    <h2>Index-Status</h2>
+    <table class="tl_listing">
+        <thead>
+            <tr>
+                <th>Typ</th>
+                <th>Einträge</th>
+                <th>Zuletzt indexiert</th>
+                <th>Aktion</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for type in ['page', 'file', 'news', 'event', 'custom'] %}
+            <tr class="{{ loop.index is odd ? 'odd' : 'even' }}">
+                <td><strong>{{ type|capitalize }}</strong></td>
+                <td>{{ stats[type] ?? 0 }}</td>
+                <td>{{ lastIndexed[type] ?? '—' }}</td>
+                <td>
+                    <form method="post" style="display:inline" onsubmit="return confirm('Index für {{ type|e('js') }} neu aufbauen?')">
+                        <input type="hidden" name="_token" value="{{ csrf_token('guc_search_reindex') }}">
+                        <input type="hidden" name="reindex" value="{{ type|e }}">
+                        <button type="submit" class="tl_submit">Neu indexieren</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div style="margin-top: 20px">
+        <form method="post" style="display:inline" onsubmit="return confirm('Gesamten Index neu aufbauen?')">
+            <input type="hidden" name="_token" value="{{ csrf_token('guc_search_reindex') }}">
+            <input type="hidden" name="reindex" value="all">
+            <button type="submit" class="tl_submit">Gesamten Index neu aufbauen</button>
+        </form>
+        <span style="margin-left: 20px; color: #999">SQLite-Datenbankgrösse: {{ dbSize }} KB</span>
+    </div>
+
+</div>
+{% endblock %}

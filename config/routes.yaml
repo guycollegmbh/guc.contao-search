@@ -1,0 +1,9 @@
+guc_search_api:
+    path: /api/search
+    controller: Guc\SearchBundle\Controller\SearchApiController
+    methods: [GET]
+
+guc_search_backend:
+    path: /contao/guc-search
+    controller: Guc\SearchBundle\Controller\Backend\SearchIndexController
+    methods: [GET]

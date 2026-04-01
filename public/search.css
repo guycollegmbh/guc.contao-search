@@ -1,0 +1,151 @@
+.guc-search {
+    position: relative;
+}
+
+.guc-search__field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.guc-search__input {
+    width: 100%;
+    padding: 10px 16px;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+    transition: border-color 0.2s;
+}
+
+.guc-search__input:focus {
+    outline: none;
+    border-color: #007bff;
+}
+
+.guc-search__clear {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    color: #999;
+    padding: 4px 8px;
+}
+
+.guc-search__results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    z-index: 1000;
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: 8px 0;
+}
+
+.guc-search__group {
+    padding: 8px 16px;
+}
+
+.guc-search__group-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.guc-search__badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: #e9ecef;
+    color: #495057;
+}
+
+.guc-search__badge--page   { background: #cfe2ff; color: #084298; }
+.guc-search__badge--file   { background: #d1e7dd; color: #0a3622; }
+.guc-search__badge--news   { background: #fff3cd; color: #664d03; }
+.guc-search__badge--event  { background: #f8d7da; color: #842029; }
+.guc-search__badge--custom { background: #e2d9f3; color: #3d0a91; }
+
+.guc-search__count {
+    font-size: 0.8rem;
+    color: #999;
+}
+
+.guc-search__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.guc-search__item {
+    border-radius: 4px;
+}
+
+.guc-search__link {
+    display: block;
+    padding: 6px 8px;
+    text-decoration: none;
+    color: inherit;
+    border-radius: 4px;
+    transition: background 0.15s;
+}
+
+.guc-search__link:hover {
+    background: #f8f9fa;
+}
+
+.guc-search__title {
+    display: block;
+    color: #212529;
+    font-size: 0.95rem;
+}
+
+.guc-search__excerpt {
+    display: block;
+    font-size: 0.82rem;
+    color: #6c757d;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.guc-search__excerpt mark {
+    background: #fff3cd;
+    color: inherit;
+    padding: 0 2px;
+    border-radius: 2px;
+}
+
+.guc-search__divider {
+    margin: 4px 16px;
+    border: none;
+    border-top: 1px solid #f0f0f0;
+}
+
+.guc-search__more {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 0.82rem;
+    color: #007bff;
+    text-decoration: none;
+}
+
+.guc-search__more:hover {
+    text-decoration: underline;
+}
+
+.guc-search__empty {
+    padding: 16px;
+    color: #6c757d;
+    text-align: center;
+}
