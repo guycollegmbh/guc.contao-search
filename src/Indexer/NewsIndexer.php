@@ -41,8 +41,15 @@ class NewsIndexer implements IndexerInterface
             return 0;
         }
 
+        $pageAliasMap = array_column(
+            $this->db->fetchAllAssociative("SELECT id, alias FROM tl_page"),
+            'alias',
+            'id'
+        );
+
         foreach ($news as $item) {
             $body = strip_tags($item['teaser'] ?? '') . ' ' . strip_tags($item['text'] ?? '');
+            $pageAlias = $pageAliasMap[$item['jumpTo']] ?? 'news';
 
             $this->searchRepository->insert([
                 'id'       => 'news_' . $item['id'],
@@ -50,7 +57,7 @@ class NewsIndexer implements IndexerInterface
                 'language' => $item['language'] ?? '',
                 'title'    => strip_tags($item['headline']),
                 'body'     => trim($body),
-                'url'      => '/news/' . $item['alias'] . '.html',
+                'url'      => '/' . $pageAlias . '/' . $item['alias'] . '.html',
                 'badge'    => 'News',
             ]);
             $count++;

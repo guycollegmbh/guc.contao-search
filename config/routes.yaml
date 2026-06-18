@@ -6,4 +6,4 @@ guc_search_api:
 guc_search_backend:
     path: /contao/guc-search
     controller: Guc\SearchBundle\Controller\Backend\SearchIndexController
-    methods: [GET]
+    methods: [GET, POST]

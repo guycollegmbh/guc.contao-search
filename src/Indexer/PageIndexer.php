@@ -51,22 +51,44 @@ class PageIndexer implements IndexerInterface
         };
 
         $pages = $this->db->fetchAllAssociative("
-            SELECT p.id, p.title, p.alias,
-                   s.text as content
-            FROM tl_page p
-            LEFT JOIN tl_search s ON s.pid = p.id
-            WHERE p.published = '1'
-            AND p.type = 'regular'
-            AND (p.robots IS NULL OR p.robots NOT LIKE '%noindex%')
+            SELECT id, title, alias
+            FROM tl_page
+            WHERE published = '1'
+            AND type = 'regular'
+            AND (robots IS NULL OR robots NOT LIKE '%noindex%')
         ");
 
+        $contentRows = $this->db->fetchAllAssociative("
+            SELECT a.pid AS pageId, c.text, c.headline
+            FROM tl_article a
+            JOIN tl_content c ON c.pid = a.id AND c.ptable = 'tl_article' AND c.invisible = ''
+            WHERE a.published = '1'
+            AND c.type IN ('text', 'headline', 'html', 'list')
+        ");
+
+        $contentByPage = [];
+        foreach ($contentRows as $row) {
+            $contentByPage[(int) $row['pageId']][] = $row;
+        }
+
         foreach ($pages as $page) {
+            $body = '';
+            foreach ($contentByPage[(int) $page['id']] ?? [] as $content) {
+                $body .= ' ' . strip_tags($content['text'] ?? '');
+                if (!empty($content['headline'])) {
+                    $hl = @unserialize($content['headline'], ['allowed_classes' => false]);
+                    if (is_array($hl) && isset($hl['value'])) {
+                        $body .= ' ' . strip_tags($hl['value']);
+                    }
+                }
+            }
+
             $this->searchRepository->insert([
                 'id'       => 'page_' . $page['id'],
                 'type'     => 'page',
                 'language' => $resolveLanguage((int) $page['id']),
                 'title'    => strip_tags($page['title']),
-                'body'     => strip_tags($page['content'] ?? ''),
+                'body'     => trim($body),
                 'url'      => '/' . ($page['alias'] ?? '') . '.html',
                 'badge'    => 'Seite',
             ]);
