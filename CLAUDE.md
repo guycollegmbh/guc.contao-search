@@ -118,6 +118,43 @@ public/
   search.css
 ```
 
+## Sicherheit
+
+### Was das Bundle selbst absichert
+- API-Parameter (`q`, `type`, `lang`) werden validiert und auf Whitelists geprüft
+- FTS5-Query wird von Sonderzeichen bereinigt (`sanitizeQuery`)
+- API-Response gibt nur explizit erlaubte Felder zurück (`formatResult`)
+- Excerpt erlaubt serverseitig nur `<mark>`-Tags (`strip_tags($excerpt, '<mark>')`)
+- Backend-Route erfordert `ROLE_ADMIN` + CSRF-Token
+- `CustomTableIndexer` validiert Tabellen-/Feldnamen via `^\w+$`
+- `unserialize()` mit `['allowed_classes' => false]`
+
+### Rate-Limiting — muss auf Anwendungsebene konfiguriert werden
+
+`GET /api/search` hat kein eingebautes Rate-Limiting. Bei häufigen Anfragen
+(z.B. automatisiertes Scraping) kann der SQLite-Index CPU/Disk belasten.
+
+**Option A — nginx** (empfohlen für Produktion):
+```nginx
+limit_req_zone $binary_remote_addr zone=guc_search:10m rate=20r/m;
+
+location /api/search {
+    limit_req zone=guc_search burst=5 nodelay;
+}
+```
+
+**Option B — Symfony Rate Limiter** (`symfony/rate-limiter` installieren):
+```yaml
+# config/packages/rate_limiter.yaml
+framework:
+    rate_limiter:
+        guc_search_api:
+            policy: sliding_window
+            limit: 30
+            interval: '1 minute'
+```
+Dann im `SearchApiController` via `RateLimiterFactory $gucSearchApiLimiter` einbinden.
+
 ## Bekannte Probleme / TODOs
 
 Siehe `STATUS.md` für den aktuellen Entwicklungsstand.
