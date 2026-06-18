@@ -9,8 +9,6 @@ services:
         exclude:
             - '../src/DependencyInjection/'
             - '../src/GucSearchBundle.php'
-            - '../src/ContaoManagerPlugin.php'
-            - '../src/Module/'
 
     Guc\SearchBundle\Repository\SearchRepository:
         arguments:

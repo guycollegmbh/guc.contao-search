@@ -45,7 +45,7 @@ class SearchApiController extends AbstractController
             $total = $this->searchRepository->countByType($query, $type, $language);
 
             return $this->json([
-                'results' => $results,
+                'results' => array_map($this->formatResult(...), $results),
                 'total'   => $total,
                 'page'    => $page,
                 'pages'   => (int) ceil($total / $perPage),
@@ -55,11 +55,6 @@ class SearchApiController extends AbstractController
 
         $grouped = $this->searchRepository->searchGrouped($query, $language, $perPage);
 
-        $response = [
-            'grouped' => [],
-            'query'   => $query,
-        ];
-
         $badgeLabels = [
             'page'   => 'Seite',
             'file'   => 'Datei',
@@ -68,17 +63,32 @@ class SearchApiController extends AbstractController
             'custom' => 'Inhalt',
         ];
 
+        $response = ['grouped' => [], 'query' => $query];
+
         foreach ($grouped as $type => $results) {
             $total = $this->searchRepository->countByType($query, $type, $language);
             $response['grouped'][] = [
                 'type'    => $type,
                 'label'   => $badgeLabels[$type] ?? $type,
-                'results' => $results,
+                'results' => array_map($this->formatResult(...), $results),
                 'total'   => $total,
                 'hasMore' => $total > $perPage,
             ];
         }
 
         return $this->json($response);
+    }
+
+    private function formatResult(array $row): array
+    {
+        return [
+            'id'      => $row['id'],
+            'type'    => $row['type'],
+            'title'   => $row['title'],
+            'url'     => $row['url'],
+            'badge'   => $row['badge'],
+            // Only <mark> tags allowed — prevents XSS if strip_tags ever fails upstream
+            'excerpt' => strip_tags($row['excerpt'] ?? '', '<mark>'),
+        ];
     }
 }

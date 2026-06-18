@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### Hinzugefügt
+- `SearchIndexListener`: automatisches Re-Indexieren via Contao `#[AsCallback]` beim
+  Speichern/Löschen in `tl_page`, `tl_article`, `tl_content`, `tl_news`,
+  `tl_calendar_events`, `tl_files`, `tl_search_config`
+- `tl_content`-Callback löst je nach `ptable` nur den betroffenen Indexer aus
+
+### Geändert
+- `PageIndexer`: liest Content direkt aus `tl_content`/`tl_article` statt `tl_search`
+- `NewsIndexer`: URL dynamisch über `jumpTo`-Seite aufgelöst
+- `EventIndexer`: URL dynamisch über `jumpTo`-Seite aufgelöst
+- Route `/contao/guc-search` erlaubt jetzt POST (Backend-Reindex-Button)
+
+### Entfernt
+- Toter Code: `ContaoManagerPlugin.php`, `ModuleSearch.php`, `mod_guc_search.html5`,
+  `search_module.html.twig`, `search_results.html.twig`, `contao/config.php`
+
 ## [0.1.0] — 2026-06-18
 
 ### Hinzugefügt

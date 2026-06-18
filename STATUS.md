@@ -19,6 +19,7 @@ Zuletzt aktualisiert: 2026-06-18
 - [x] Zweisprachige Labels (de/en)
 - [x] PageIndexer liest direkt aus tl_content/tl_article (unabhängig von Contaos Crawler)
 - [x] News- und Event-URLs dynamisch über jumpTo-Seite aufgelöst
+- [x] Automatisches Re-Indexieren via SearchIndexListener (Contao DCA-Callbacks)
 
 ## Bekannte Probleme
 
@@ -48,7 +49,7 @@ Zuletzt aktualisiert: 2026-06-18
 
 ## Noch nicht implementiert / Nächste Schritte
 
-- [ ] **Automatische Indexierung** via Contao-Hook oder Symfony-Event beim Speichern
+- [x] ~~**Automatische Indexierung**~~ — implementiert via SearchIndexListener
 - [ ] **Volltext-Extraktion** für PDFs (aktuell nur Metadaten aus tl_files)
 - [ ] **Ergebnisseite** für gefilterte Suche (guc_search_resultsPage auswerten)
 - [ ] **Pagination im Frontend** (JS für "Mehr laden" auf der Ergebnisseite)

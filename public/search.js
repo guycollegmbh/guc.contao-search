@@ -98,11 +98,25 @@
                 group.results.forEach(function (result) {
                     const li = document.createElement('li');
                     li.className = 'guc-search__item';
-                    li.innerHTML =
-                        '<a href="' + escHtml(result.url) + '" class="guc-search__link">' +
-                        '<strong class="guc-search__title">' + escHtml(result.title) + '</strong>' +
-                        (result.excerpt ? '<span class="guc-search__excerpt">' + result.excerpt + '</span>' : '') +
-                        '</a>';
+
+                    const a = document.createElement('a');
+                    a.href = result.url;
+                    a.className = 'guc-search__link';
+
+                    const strong = document.createElement('strong');
+                    strong.className = 'guc-search__title';
+                    strong.textContent = result.title;
+                    a.appendChild(strong);
+
+                    if (result.excerpt) {
+                        const span = document.createElement('span');
+                        span.className = 'guc-search__excerpt';
+                        // Server guarantees only <mark> tags in excerpt
+                        span.innerHTML = result.excerpt;
+                        a.appendChild(span);
+                    }
+
+                    li.appendChild(a);
                     list.appendChild(li);
                 });
 
