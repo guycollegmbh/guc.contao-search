@@ -28,10 +28,11 @@ class NewsIndexer implements IndexerInterface
 
         try {
             $news = $this->db->fetchAllAssociative("
-                SELECT n.id, n.headline, n.teaser, n.alias, n.language,
-                       na.jumpTo
+                SELECT n.id, n.headline, n.teaser, n.alias,
+                       na.jumpTo, p.language
                 FROM tl_news n
                 JOIN tl_news_archive na ON na.id = n.pid
+                LEFT JOIN tl_page p ON p.id = na.jumpTo
                 WHERE n.published = '1'
                 AND (n.start = '' OR n.start <= UNIX_TIMESTAMP())
                 AND (n.stop = '' OR n.stop > UNIX_TIMESTAMP())

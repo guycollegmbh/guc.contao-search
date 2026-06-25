@@ -28,10 +28,11 @@ class EventIndexer implements IndexerInterface
 
         try {
             $events = $this->db->fetchAllAssociative("
-                SELECT e.id, e.title, e.teaser, e.alias, e.language,
-                       e.startDate, e.startTime, c.jumpTo
+                SELECT e.id, e.title, e.teaser, e.alias,
+                       e.startDate, e.startTime, c.jumpTo, p.language
                 FROM tl_calendar_events e
                 JOIN tl_calendar c ON c.id = e.pid
+                LEFT JOIN tl_page p ON p.id = c.jumpTo
                 WHERE e.published = '1'
                 AND (e.start = '' OR e.start <= UNIX_TIMESTAMP())
                 AND (e.stop = '' OR e.stop > UNIX_TIMESTAMP())
