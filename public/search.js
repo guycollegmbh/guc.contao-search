@@ -1,7 +1,8 @@
 (function () {
     'use strict';
 
-    document.querySelectorAll('.guc-search').forEach(function (widget) {
+    function initSearch() {
+        document.querySelectorAll('.guc-search').forEach(function (widget) {
         const input = widget.querySelector('.guc-search__input');
         const results = widget.querySelector('.guc-search__results');
         const clearBtn = widget.querySelector('.guc-search__clear');
@@ -166,5 +167,12 @@
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;');
         }
-    });
+        }); // end forEach
+    } // end initSearch
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initSearch);
+    } else {
+        initSearch();
+    }
 }());
