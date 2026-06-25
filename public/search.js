@@ -3,170 +3,195 @@
 
     function initSearch() {
         document.querySelectorAll('.guc-search').forEach(function (widget) {
-        const input = widget.querySelector('.guc-search__input');
-        const results = widget.querySelector('.guc-search__results');
-        const clearBtn = widget.querySelector('.guc-search__clear');
+            const input = widget.querySelector('.guc-search__input');
+            const results = widget.querySelector('.guc-search__results');
+            const clearBtn = widget.querySelector('.guc-search__clear');
 
-        const apiUrl = widget.dataset.apiUrl || '/api/search';
-        const minChars = parseInt(widget.dataset.minChars || '2', 10);
-        const debounce = parseInt(widget.dataset.debounce || '400', 10);
-        const lang = widget.dataset.lang || '';
+            const apiUrl = widget.dataset.apiUrl || '/api/search';
+            const minChars = parseInt(widget.dataset.minChars || '2', 10);
+            const debounce = parseInt(widget.dataset.debounce || '400', 10);
+            const lang = widget.dataset.lang || '';
 
-        let timer = null;
-        let currentQuery = '';
-        let abortController = null;
+            let timer = null;
+            let currentQuery = '';
+            let abortController = null;
 
-        input.addEventListener('input', function () {
-            const query = input.value.trim();
-            clearBtn.hidden = query.length === 0;
+            input.addEventListener('input', function () {
+                const query = input.value.trim();
+                clearBtn.hidden = query.length === 0;
 
-            clearTimeout(timer);
+                clearTimeout(timer);
 
-            if (query.length < minChars) {
-                hideResults();
-                return;
-            }
-
-            timer = setTimeout(function () {
-                doSearch(query);
-            }, debounce);
-        });
-
-        clearBtn.addEventListener('click', function () {
-            input.value = '';
-            clearBtn.hidden = true;
-            hideResults();
-            input.focus();
-        });
-
-        document.addEventListener('click', function (e) {
-            if (!widget.contains(e.target)) {
-                hideResults();
-            }
-        });
-
-        input.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape') {
-                hideResults();
-                input.blur();
-            }
-        });
-
-        function doSearch(query) {
-            if (query === currentQuery) return;
-            currentQuery = query;
-
-            if (abortController) {
-                abortController.abort();
-            }
-            abortController = new AbortController();
-
-            const url = apiUrl + '?q=' + encodeURIComponent(query) + (lang ? '&lang=' + lang : '');
-
-            fetch(url, { signal: abortController.signal })
-                .then(function (res) {
-                    if (!res.ok) {
-                        throw new Error('HTTP ' + res.status);
-                    }
-                    return res.json();
-                })
-                .then(function (data) { renderResults(data, query); })
-                .catch(function (err) {
-                    if (err.name !== 'AbortError') {
-                        console.error('GUC Search error:', err);
-                        results.innerHTML = '<p class="guc-search__empty">Suche nicht verfügbar.</p>';
-                        showResults();
-                    }
-                });
-        }
-
-        function renderResults(data, query) {
-            results.innerHTML = '';
-
-            if (!data.grouped || data.grouped.length === 0) {
-                results.innerHTML = '<p class="guc-search__empty">Keine Ergebnisse gefunden.</p>';
-                showResults();
-                return;
-            }
-
-            data.grouped.forEach(function (group, idx) {
-                const groupEl = document.createElement('div');
-                groupEl.className = 'guc-search__group';
-                groupEl.dataset.type = group.type;
-
-                const header = document.createElement('div');
-                header.className = 'guc-search__group-header';
-                header.innerHTML =
-                    '<span class="guc-search__badge guc-search__badge--' + group.type + '">' + escHtml(group.label) + '</span>' +
-                    '<span class="guc-search__count">' + group.total + ' Treffer</span>';
-
-                const list = document.createElement('ul');
-                list.className = 'guc-search__list';
-
-                group.results.forEach(function (result) {
-                    const li = document.createElement('li');
-                    li.className = 'guc-search__item';
-
-                    const a = document.createElement('a');
-                    a.href = result.url;
-                    a.className = 'guc-search__link';
-
-                    const strong = document.createElement('strong');
-                    strong.className = 'guc-search__title';
-                    strong.textContent = result.title;
-                    a.appendChild(strong);
-
-                    if (result.excerpt) {
-                        const span = document.createElement('span');
-                        span.className = 'guc-search__excerpt';
-                        // Server guarantees only <mark> tags in excerpt
-                        span.innerHTML = result.excerpt;
-                        a.appendChild(span);
-                    }
-
-                    li.appendChild(a);
-                    list.appendChild(li);
-                });
-
-                groupEl.appendChild(header);
-                groupEl.appendChild(list);
-
-                if (group.hasMore) {
-                    const more = document.createElement('a');
-                    more.href = '?q=' + encodeURIComponent(query) + '&type=' + group.type;
-                    more.className = 'guc-search__more';
-                    more.textContent = 'Mehr anzeigen';
-                    groupEl.appendChild(more);
+                if (query.length < minChars) {
+                    hideResults();
+                    return;
                 }
 
-                results.appendChild(groupEl);
+                timer = setTimeout(function () {
+                    doSearch(query);
+                }, debounce);
+            });
 
-                if (idx < data.grouped.length - 1) {
-                    const hr = document.createElement('hr');
-                    hr.className = 'guc-search__divider';
-                    results.appendChild(hr);
+            input.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') {
+                    hideResults();
+                    input.blur();
+                } else if (e.key === 'ArrowDown' && !results.hidden) {
+                    e.preventDefault();
+                    var first = results.querySelector('.guc-search__link, .guc-search__more');
+                    if (first) first.focus();
                 }
             });
 
-            showResults();
-        }
+            results.addEventListener('keydown', function (e) {
+                var focusable = Array.prototype.slice.call(
+                    results.querySelectorAll('.guc-search__link, .guc-search__more')
+                );
+                var idx = focusable.indexOf(document.activeElement);
 
-        function showResults() {
-            results.hidden = false;
-        }
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (idx < focusable.length - 1) focusable[idx + 1].focus();
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (idx > 0) focusable[idx - 1].focus();
+                    else input.focus();
+                } else if (e.key === 'Escape') {
+                    hideResults();
+                    input.focus();
+                }
+            });
 
-        function hideResults() {
-            results.hidden = true;
-            currentQuery = '';
-        }
+            clearBtn.addEventListener('click', function () {
+                input.value = '';
+                clearBtn.hidden = true;
+                hideResults();
+                input.focus();
+            });
 
-        function escHtml(str) {
-            return String(str)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;');
-        }
+            document.addEventListener('click', function (e) {
+                if (!widget.contains(e.target)) {
+                    hideResults();
+                }
+            });
+
+            function doSearch(query) {
+                if (query === currentQuery) return;
+                currentQuery = query;
+
+                if (abortController) {
+                    abortController.abort();
+                }
+                abortController = new AbortController();
+
+                results.innerHTML = '<div class="guc-search__loading" role="status" aria-label="Suche läuft…"></div>';
+                results.hidden = false;
+
+                var url = apiUrl + '?q=' + encodeURIComponent(query) + (lang ? '&lang=' + lang : '');
+
+                fetch(url, { signal: abortController.signal })
+                    .then(function (res) {
+                        if (!res.ok) throw new Error('HTTP ' + res.status);
+                        return res.json();
+                    })
+                    .then(function (data) { renderResults(data, query); })
+                    .catch(function (err) {
+                        if (err.name !== 'AbortError') {
+                            console.error('GUC Search error:', err);
+                            results.innerHTML = '<p class="guc-search__empty">Suche nicht verfügbar.</p>';
+                            results.hidden = false;
+                        }
+                    });
+            }
+
+            function renderResults(data, query) {
+                results.innerHTML = '';
+
+                if (!data.grouped || data.grouped.length === 0) {
+                    results.innerHTML = '<p class="guc-search__empty">Keine Ergebnisse gefunden.</p>';
+                    results.hidden = false;
+                    return;
+                }
+
+                data.grouped.forEach(function (group, idx) {
+                    var groupEl = document.createElement('div');
+                    groupEl.className = 'guc-search__group';
+                    groupEl.dataset.type = group.type;
+
+                    var header = document.createElement('div');
+                    header.className = 'guc-search__group-header';
+                    header.innerHTML =
+                        '<span class="guc-search__badge guc-search__badge--' + group.type + '">' + escHtml(group.label) + '</span>' +
+                        '<span class="guc-search__count">' + group.total + ' Treffer</span>';
+
+                    var list = document.createElement('ul');
+                    list.className = 'guc-search__list';
+
+                    group.results.forEach(function (result) {
+                        var li = document.createElement('li');
+                        li.className = 'guc-search__item';
+
+                        var a = document.createElement('a');
+                        a.href = result.url;
+                        a.className = 'guc-search__link';
+
+                        var strong = document.createElement('strong');
+                        strong.className = 'guc-search__title';
+                        if (result.titleHighlight) {
+                            // Server guarantees only <mark> tags
+                            strong.innerHTML = result.titleHighlight;
+                        } else {
+                            strong.textContent = result.title;
+                        }
+                        a.appendChild(strong);
+
+                        if (result.excerpt) {
+                            var span = document.createElement('span');
+                            span.className = 'guc-search__excerpt';
+                            // Server guarantees only <mark> tags in excerpt
+                            span.innerHTML = result.excerpt;
+                            a.appendChild(span);
+                        }
+
+                        li.appendChild(a);
+                        list.appendChild(li);
+                    });
+
+                    groupEl.appendChild(header);
+                    groupEl.appendChild(list);
+
+                    if (group.hasMore) {
+                        var more = document.createElement('a');
+                        more.href = '?q=' + encodeURIComponent(query) + '&type=' + group.type;
+                        more.className = 'guc-search__more';
+                        more.textContent = 'Mehr anzeigen';
+                        groupEl.appendChild(more);
+                    }
+
+                    results.appendChild(groupEl);
+
+                    if (idx < data.grouped.length - 1) {
+                        var hr = document.createElement('hr');
+                        hr.className = 'guc-search__divider';
+                        results.appendChild(hr);
+                    }
+                });
+
+                results.hidden = false;
+            }
+
+            function hideResults() {
+                results.hidden = true;
+                currentQuery = '';
+            }
+
+            function escHtml(str) {
+                return String(str)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;');
+            }
         }); // end forEach
     } // end initSearch
 

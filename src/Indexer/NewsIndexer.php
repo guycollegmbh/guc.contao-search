@@ -57,8 +57,29 @@ class NewsIndexer implements IndexerInterface
             return $suffixMap[$id] = $resolveSuffix((int) $pageMap[$id]['pid']);
         };
 
+        $contentRows = $this->db->fetchAllAssociative("
+            SELECT c.pid AS newsId, c.text, c.headline
+            FROM tl_content c
+            WHERE c.ptable = 'tl_news'
+            AND c.invisible = ''
+            AND c.type IN ('text', 'headline', 'html', 'list')
+        ");
+        $contentByNews = [];
+        foreach ($contentRows as $row) {
+            $contentByNews[(int) $row['newsId']][] = $row;
+        }
+
         foreach ($news as $item) {
             $body = strip_tags($item['teaser'] ?? '');
+            foreach ($contentByNews[(int) $item['id']] ?? [] as $content) {
+                $body .= ' ' . strip_tags($content['text'] ?? '');
+                if (!empty($content['headline'])) {
+                    $hl = @unserialize($content['headline'], ['allowed_classes' => false]);
+                    if (is_array($hl) && isset($hl['value'])) {
+                        $body .= ' ' . strip_tags($hl['value']);
+                    }
+                }
+            }
             $jumpTo = (int) $item['jumpTo'];
             $pageAlias = $pageMap[$jumpTo]['alias'] ?? 'news';
             $suffix = $resolveSuffix($jumpTo);

@@ -57,8 +57,29 @@ class EventIndexer implements IndexerInterface
             return $suffixMap[$id] = $resolveSuffix((int) $pageMap[$id]['pid']);
         };
 
+        $contentRows = $this->db->fetchAllAssociative("
+            SELECT c.pid AS eventId, c.text, c.headline
+            FROM tl_content c
+            WHERE c.ptable = 'tl_calendar_events'
+            AND c.invisible = ''
+            AND c.type IN ('text', 'headline', 'html', 'list')
+        ");
+        $contentByEvent = [];
+        foreach ($contentRows as $row) {
+            $contentByEvent[(int) $row['eventId']][] = $row;
+        }
+
         foreach ($events as $event) {
             $body = strip_tags($event['teaser'] ?? '');
+            foreach ($contentByEvent[(int) $event['id']] ?? [] as $content) {
+                $body .= ' ' . strip_tags($content['text'] ?? '');
+                if (!empty($content['headline'])) {
+                    $hl = @unserialize($content['headline'], ['allowed_classes' => false]);
+                    if (is_array($hl) && isset($hl['value'])) {
+                        $body .= ' ' . strip_tags($hl['value']);
+                    }
+                }
+            }
             $jumpTo = (int) $event['jumpTo'];
             $pageAlias = $pageMap[$jumpTo]['alias'] ?? 'events';
             $suffix = $resolveSuffix($jumpTo);

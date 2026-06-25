@@ -84,19 +84,22 @@ class SearchApiController extends AbstractController
             ];
         }
 
-        return $this->json($response);
+        $jsonResponse = $this->json($response);
+        $jsonResponse->setPrivate()->setMaxAge(30);
+
+        return $jsonResponse;
     }
 
     private function formatResult(array $row): array
     {
         return [
-            'id'      => $row['id'],
-            'type'    => $row['type'],
-            'title'   => $row['title'],
-            'url'     => $row['url'],
-            'badge'   => $row['badge'],
-            // Only <mark> tags allowed — prevents XSS if strip_tags ever fails upstream
-            'excerpt' => strip_tags($row['excerpt'] ?? '', '<mark>'),
+            'id'             => $row['id'],
+            'type'           => $row['type'],
+            'title'          => $row['title'],
+            'titleHighlight' => strip_tags($row['titleHighlight'] ?? '', '<mark>'),
+            'url'            => $row['url'],
+            'badge'          => $row['badge'],
+            'excerpt'        => strip_tags($row['excerpt'] ?? '', '<mark>'),
         ];
     }
 }

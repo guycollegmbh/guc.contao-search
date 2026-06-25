@@ -9,6 +9,23 @@
         <div class="tl_confirm"><p>{{ message|e }}</p></div>
     {% endif %}
 
+    {% set staleTypes = [] %}
+    {% for type in ['page', 'file', 'news', 'event', 'custom'] %}
+        {% if lastIndexed[type] is not null and (stats[type] ?? 0) > 0 %}
+            {% if ("now"|date('U') - lastIndexed[type]|date('U')) > 86400 %}
+                {% set staleTypes = staleTypes|merge([type]) %}
+            {% endif %}
+        {% elseif (stats[type] ?? 0) == 0 %}
+            {% set staleTypes = staleTypes|merge([type]) %}
+        {% endif %}
+    {% endfor %}
+
+    {% if staleTypes|length > 0 %}
+        <div class="tl_error" style="margin-bottom:16px">
+            <p><strong>Index veraltet oder leer:</strong> {{ staleTypes|join(', ') }} — bitte neu indexieren.</p>
+        </div>
+    {% endif %}
+
     <h2>Index-Status</h2>
     <table class="tl_listing">
         <thead>
@@ -21,10 +38,11 @@
         </thead>
         <tbody>
             {% for type in ['page', 'file', 'news', 'event', 'custom'] %}
+            {% set isStale = type in staleTypes %}
             <tr class="{{ loop.index is odd ? 'odd' : 'even' }}">
-                <td><strong>{{ type|capitalize }}</strong></td>
+                <td><strong>{{ type|capitalize }}</strong>{% if isStale %} <span style="color:#cc0000">⚠</span>{% endif %}</td>
                 <td>{{ stats[type] ?? 0 }}</td>
-                <td>{{ lastIndexed[type] ?? '—' }}</td>
+                <td style="{{ isStale ? 'color:#cc0000' : '' }}">{{ lastIndexed[type] ?? '—' }}</td>
                 <td>
                     <form method="post" style="display:inline" onsubmit="return confirm('Index für {{ type|e('js') }} neu aufbauen?')">
                         <input type="hidden" name="_token" value="{{ csrf_token('guc_search_reindex') }}">

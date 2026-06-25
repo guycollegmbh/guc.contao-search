@@ -70,6 +70,8 @@ class PageIndexer implements IndexerInterface
             WHERE published = '1'
             AND type = 'regular'
             AND (robots IS NULL OR robots NOT LIKE '%noindex%')
+            AND (noSearch IS NULL OR noSearch != '1')
+            AND (sitemap IS NULL OR sitemap != 'map_never')
         ");
 
         $contentRows = $this->db->fetchAllAssociative("

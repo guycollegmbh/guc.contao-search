@@ -19,11 +19,27 @@ class SearchRepository
     {
         $this->pdo = new \PDO('sqlite:' . $this->dbPath);
         $this->pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+        $this->pdo->exec("PRAGMA journal_mode=WAL");
+        $this->pdo->exec("PRAGMA synchronous=NORMAL");
+        $this->pdo->exec("PRAGMA cache_size=-10000");
         $this->createTables();
     }
 
     private function createTables(): void
     {
+        $this->pdo->exec("
+            CREATE TABLE IF NOT EXISTS search_meta (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            )
+        ");
+
+        // Schema v1: prefix='2 3 4' for faster prefix queries; rebuild required
+        $version = (int) $this->pdo->query("PRAGMA user_version")->fetchColumn();
+        if ($version < 1) {
+            $this->pdo->exec("DROP TABLE IF EXISTS search_index");
+        }
+
         $this->pdo->exec("
             CREATE VIRTUAL TABLE IF NOT EXISTS search_index USING fts5(
                 id UNINDEXED,
@@ -34,16 +50,14 @@ class SearchRepository
                 url UNINDEXED,
                 badge UNINDEXED,
                 updated UNINDEXED,
-                tokenize='unicode61'
+                tokenize='unicode61',
+                prefix='2 3 4'
             )
         ");
 
-        $this->pdo->exec("
-            CREATE TABLE IF NOT EXISTS search_meta (
-                key TEXT PRIMARY KEY,
-                value TEXT
-            )
-        ");
+        if ($version < 1) {
+            $this->pdo->exec("PRAGMA user_version = 1");
+        }
     }
 
     public function search(string $query, string $language = '', int $limit = 10, int $offset = 0): array
@@ -59,21 +73,23 @@ class SearchRepository
             $sql = "
                 SELECT id, type, language, title, url, badge,
                        snippet(search_index, 4, '<mark>', '</mark>', '…', 32) AS excerpt,
-                       rank
+                       snippet(search_index, 3, '<mark>', '</mark>', '', 20) AS titleHighlight
                 FROM search_index
                 WHERE search_index MATCH :query
                 AND (language = :language OR language = '')
-                ORDER BY rank LIMIT :limit OFFSET :offset
+                ORDER BY bm25(search_index, 0.0, 0.0, 0.0, 10.0, 1.0, 0.0, 0.0, 0.0)
+                LIMIT :limit OFFSET :offset
             ";
             $params = [':query' => $ftsQuery, ':language' => $language];
         } else {
             $sql = "
                 SELECT id, type, language, title, url, badge,
                        snippet(search_index, 4, '<mark>', '</mark>', '…', 32) AS excerpt,
-                       rank
+                       snippet(search_index, 3, '<mark>', '</mark>', '', 20) AS titleHighlight
                 FROM search_index
                 WHERE search_index MATCH :query
-                ORDER BY rank LIMIT :limit OFFSET :offset
+                ORDER BY bm25(search_index, 0.0, 0.0, 0.0, 10.0, 1.0, 0.0, 0.0, 0.0)
+                LIMIT :limit OFFSET :offset
             ";
             $params = [':query' => $ftsQuery];
         }
@@ -119,23 +135,25 @@ class SearchRepository
             $sql = "
                 SELECT id, type, language, title, url, badge,
                        snippet(search_index, 4, '<mark>', '</mark>', '…', 32) AS excerpt,
-                       rank
+                       snippet(search_index, 3, '<mark>', '</mark>', '', 20) AS titleHighlight
                 FROM search_index
                 WHERE search_index MATCH :query
                 AND type = :type
                 AND (language = :language OR language = '')
-                ORDER BY rank LIMIT :limit OFFSET :offset
+                ORDER BY bm25(search_index, 0.0, 0.0, 0.0, 10.0, 1.0, 0.0, 0.0, 0.0)
+                LIMIT :limit OFFSET :offset
             ";
             $params[':language'] = $language;
         } else {
             $sql = "
                 SELECT id, type, language, title, url, badge,
                        snippet(search_index, 4, '<mark>', '</mark>', '…', 32) AS excerpt,
-                       rank
+                       snippet(search_index, 3, '<mark>', '</mark>', '', 20) AS titleHighlight
                 FROM search_index
                 WHERE search_index MATCH :query
                 AND type = :type
-                ORDER BY rank LIMIT :limit OFFSET :offset
+                ORDER BY bm25(search_index, 0.0, 0.0, 0.0, 10.0, 1.0, 0.0, 0.0, 0.0)
+                LIMIT :limit OFFSET :offset
             ";
         }
 
