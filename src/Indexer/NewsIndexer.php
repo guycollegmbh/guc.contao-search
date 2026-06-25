@@ -42,15 +42,26 @@ class NewsIndexer implements IndexerInterface
             return 0;
         }
 
-        $pageAliasMap = array_column(
-            $this->db->fetchAllAssociative("SELECT id, alias FROM tl_page"),
-            'alias',
-            'id'
-        );
+        $allPages = $this->db->fetchAllAssociative("SELECT id, pid, type, alias, urlSuffix FROM tl_page");
+        $pageMap = array_column($allPages, null, 'id');
+
+        $suffixMap = [];
+        foreach ($pageMap as $p) {
+            if ($p['type'] === 'root') {
+                $suffixMap[$p['id']] = $p['urlSuffix'] ?? '';
+            }
+        }
+        $resolveSuffix = function (int $id) use (&$resolveSuffix, $pageMap, &$suffixMap): string {
+            if (isset($suffixMap[$id])) return $suffixMap[$id];
+            if (!isset($pageMap[$id])) return '';
+            return $suffixMap[$id] = $resolveSuffix((int) $pageMap[$id]['pid']);
+        };
 
         foreach ($news as $item) {
             $body = strip_tags($item['teaser'] ?? '');
-            $pageAlias = $pageAliasMap[$item['jumpTo']] ?? 'news';
+            $jumpTo = (int) $item['jumpTo'];
+            $pageAlias = $pageMap[$jumpTo]['alias'] ?? 'news';
+            $suffix = $resolveSuffix($jumpTo);
 
             $this->searchRepository->insert([
                 'id'       => 'news_' . $item['id'],
@@ -58,7 +69,7 @@ class NewsIndexer implements IndexerInterface
                 'language' => $item['language'] ?? '',
                 'title'    => strip_tags($item['headline']),
                 'body'     => trim($body),
-                'url'      => '/' . $pageAlias . '/' . $item['alias'] . '.html',
+                'url'      => '/' . $pageAlias . '/' . $item['alias'] . $suffix,
                 'badge'    => 'News',
             ]);
             $count++;

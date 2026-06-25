@@ -42,15 +42,26 @@ class EventIndexer implements IndexerInterface
             return 0;
         }
 
-        $pageAliasMap = array_column(
-            $this->db->fetchAllAssociative("SELECT id, alias FROM tl_page"),
-            'alias',
-            'id'
-        );
+        $allPages = $this->db->fetchAllAssociative("SELECT id, pid, type, alias, urlSuffix FROM tl_page");
+        $pageMap = array_column($allPages, null, 'id');
+
+        $suffixMap = [];
+        foreach ($pageMap as $p) {
+            if ($p['type'] === 'root') {
+                $suffixMap[$p['id']] = $p['urlSuffix'] ?? '';
+            }
+        }
+        $resolveSuffix = function (int $id) use (&$resolveSuffix, $pageMap, &$suffixMap): string {
+            if (isset($suffixMap[$id])) return $suffixMap[$id];
+            if (!isset($pageMap[$id])) return '';
+            return $suffixMap[$id] = $resolveSuffix((int) $pageMap[$id]['pid']);
+        };
 
         foreach ($events as $event) {
             $body = strip_tags($event['teaser'] ?? '');
-            $pageAlias = $pageAliasMap[$event['jumpTo']] ?? 'events';
+            $jumpTo = (int) $event['jumpTo'];
+            $pageAlias = $pageMap[$jumpTo]['alias'] ?? 'events';
+            $suffix = $resolveSuffix($jumpTo);
 
             $this->searchRepository->insert([
                 'id'       => 'event_' . $event['id'],
@@ -58,7 +69,7 @@ class EventIndexer implements IndexerInterface
                 'language' => $event['language'] ?? '',
                 'title'    => strip_tags($event['title']),
                 'body'     => trim($body),
-                'url'      => '/' . $pageAlias . '/' . $event['alias'] . '.html',
+                'url'      => '/' . $pageAlias . '/' . $event['alias'] . $suffix,
                 'badge'    => 'Event',
             ]);
             $count++;

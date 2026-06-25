@@ -24,20 +24,22 @@ class PageIndexer implements IndexerInterface
         $this->searchRepository->clearType('page');
         $count = 0;
 
-        // Build pid -> language map by walking up tree from root pages
-        $allPages = $this->db->fetchAllAssociative("SELECT id, pid, type, language FROM tl_page");
+        // Build pid -> page map and resolve language + urlSuffix by walking up to root
+        $allPages = $this->db->fetchAllAssociative("SELECT id, pid, type, language, urlSuffix FROM tl_page");
         $pageMap = [];
         foreach ($allPages as $p) {
             $pageMap[$p['id']] = $p;
         }
 
         $languageMap = [];
+        $suffixMap = [];
         foreach ($pageMap as $p) {
             if ($p['type'] === 'root') {
                 $languageMap[$p['id']] = $p['language'];
+                $suffixMap[$p['id']] = $p['urlSuffix'] ?? '';
             }
         }
-        // Resolve language for each page by walking up pid chain
+
         $resolveLanguage = function (int $id) use (&$resolveLanguage, $pageMap, &$languageMap): string {
             if (isset($languageMap[$id])) {
                 return $languageMap[$id];
@@ -48,6 +50,18 @@ class PageIndexer implements IndexerInterface
             $lang = $resolveLanguage((int) $pageMap[$id]['pid']);
             $languageMap[$id] = $lang;
             return $lang;
+        };
+
+        $resolveSuffix = function (int $id) use (&$resolveSuffix, $pageMap, &$suffixMap): string {
+            if (isset($suffixMap[$id])) {
+                return $suffixMap[$id];
+            }
+            if (!isset($pageMap[$id])) {
+                return '';
+            }
+            $suffix = $resolveSuffix((int) $pageMap[$id]['pid']);
+            $suffixMap[$id] = $suffix;
+            return $suffix;
         };
 
         $pages = $this->db->fetchAllAssociative("
@@ -89,7 +103,7 @@ class PageIndexer implements IndexerInterface
                 'language' => $resolveLanguage((int) $page['id']),
                 'title'    => strip_tags($page['title']),
                 'body'     => trim($body),
-                'url'      => '/' . ($page['alias'] ?? '') . '.html',
+                'url'      => '/' . ($page['alias'] ?? '') . $resolveSuffix((int) $page['id']),
                 'badge'    => 'Seite',
             ]);
             $count++;
