@@ -28,7 +28,7 @@ class NewsIndexer implements IndexerInterface
 
         try {
             $news = $this->db->fetchAllAssociative("
-                SELECT n.id, n.headline, n.teaser, n.text, n.alias, n.language,
+                SELECT n.id, n.headline, n.teaser, n.alias, n.language,
                        na.jumpTo
                 FROM tl_news n
                 JOIN tl_news_archive na ON na.id = n.pid
@@ -48,7 +48,7 @@ class NewsIndexer implements IndexerInterface
         );
 
         foreach ($news as $item) {
-            $body = strip_tags($item['teaser'] ?? '') . ' ' . strip_tags($item['text'] ?? '');
+            $body = strip_tags($item['teaser'] ?? '');
             $pageAlias = $pageAliasMap[$item['jumpTo']] ?? 'news';
 
             $this->searchRepository->insert([

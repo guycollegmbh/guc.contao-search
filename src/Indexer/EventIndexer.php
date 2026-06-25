@@ -28,7 +28,7 @@ class EventIndexer implements IndexerInterface
 
         try {
             $events = $this->db->fetchAllAssociative("
-                SELECT e.id, e.title, e.teaser, e.details, e.alias, e.language,
+                SELECT e.id, e.title, e.teaser, e.alias, e.language,
                        e.startDate, e.startTime, c.jumpTo
                 FROM tl_calendar_events e
                 JOIN tl_calendar c ON c.id = e.pid
@@ -48,7 +48,7 @@ class EventIndexer implements IndexerInterface
         );
 
         foreach ($events as $event) {
-            $body = strip_tags($event['teaser'] ?? '') . ' ' . strip_tags($event['details'] ?? '');
+            $body = strip_tags($event['teaser'] ?? '');
             $pageAlias = $pageAliasMap[$event['jumpTo']] ?? 'events';
 
             $this->searchRepository->insert([
