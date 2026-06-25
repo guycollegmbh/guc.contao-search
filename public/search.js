@@ -63,11 +63,18 @@
             const url = apiUrl + '?q=' + encodeURIComponent(query) + (lang ? '&lang=' + lang : '');
 
             fetch(url, { signal: abortController.signal })
-                .then(function (res) { return res.json(); })
+                .then(function (res) {
+                    if (!res.ok) {
+                        throw new Error('HTTP ' + res.status);
+                    }
+                    return res.json();
+                })
                 .then(function (data) { renderResults(data, query); })
                 .catch(function (err) {
                     if (err.name !== 'AbortError') {
                         console.error('GUC Search error:', err);
+                        results.innerHTML = '<p class="guc-search__empty">Suche nicht verfügbar.</p>';
+                        showResults();
                     }
                 });
         }

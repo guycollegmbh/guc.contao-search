@@ -62,7 +62,7 @@ class SearchRepository
                        rank
                 FROM search_index
                 WHERE search_index MATCH :query
-                AND rowid IN (SELECT rowid FROM search_index WHERE language = :language OR language = '')
+                AND (language = :language OR language = '')
                 ORDER BY rank LIMIT :limit OFFSET :offset
             ";
             $params = [':query' => $ftsQuery, ':language' => $language];
@@ -116,21 +116,28 @@ class SearchRepository
         $params = [':query' => $ftsQuery, ':type' => $type];
 
         if ($language !== '') {
-            $subquery = "SELECT rowid FROM search_index WHERE type = :type AND (language = :language OR language = '')";
+            $sql = "
+                SELECT id, type, language, title, url, badge,
+                       snippet(search_index, 4, '<mark>', '</mark>', '…', 32) AS excerpt,
+                       rank
+                FROM search_index
+                WHERE search_index MATCH :query
+                AND type = :type
+                AND (language = :language OR language = '')
+                ORDER BY rank LIMIT :limit OFFSET :offset
+            ";
             $params[':language'] = $language;
         } else {
-            $subquery = "SELECT rowid FROM search_index WHERE type = :type";
+            $sql = "
+                SELECT id, type, language, title, url, badge,
+                       snippet(search_index, 4, '<mark>', '</mark>', '…', 32) AS excerpt,
+                       rank
+                FROM search_index
+                WHERE search_index MATCH :query
+                AND type = :type
+                ORDER BY rank LIMIT :limit OFFSET :offset
+            ";
         }
-
-        $sql = "
-            SELECT id, type, language, title, url, badge,
-                   snippet(search_index, 4, '<mark>', '</mark>', '…', 32) AS excerpt,
-                   rank
-            FROM search_index
-            WHERE search_index MATCH :query
-            AND rowid IN ($subquery)
-            ORDER BY rank LIMIT :limit OFFSET :offset
-        ";
 
         $stmt = $this->pdo->prepare($sql);
         foreach ($params as $key => $value) {
@@ -155,13 +162,11 @@ class SearchRepository
         $params = [':query' => $ftsQuery, ':type' => $type];
 
         if ($language !== '') {
-            $subquery = "SELECT rowid FROM search_index WHERE type = :type AND (language = :language OR language = '')";
+            $sql = "SELECT COUNT(*) FROM search_index WHERE search_index MATCH :query AND type = :type AND (language = :language OR language = '')";
             $params[':language'] = $language;
         } else {
-            $subquery = "SELECT rowid FROM search_index WHERE type = :type";
+            $sql = "SELECT COUNT(*) FROM search_index WHERE search_index MATCH :query AND type = :type";
         }
-
-        $sql = "SELECT COUNT(*) FROM search_index WHERE search_index MATCH :query AND rowid IN ($subquery)";
 
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);

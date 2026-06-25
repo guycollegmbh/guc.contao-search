@@ -53,7 +53,11 @@ class SearchApiController extends AbstractController
             ]);
         }
 
-        $grouped = $this->searchRepository->searchGrouped($query, $language, $perPage);
+        try {
+            $grouped = $this->searchRepository->searchGrouped($query, $language, $perPage);
+        } catch (\Throwable $e) {
+            return $this->json(['grouped' => [], 'query' => $query, 'error' => 'search_failed']);
+        }
 
         $badgeLabels = [
             'page'   => 'Seite',
@@ -66,7 +70,11 @@ class SearchApiController extends AbstractController
         $response = ['grouped' => [], 'query' => $query];
 
         foreach ($grouped as $type => $results) {
-            $total = $this->searchRepository->countByType($query, $type, $language);
+            try {
+                $total = $this->searchRepository->countByType($query, $type, $language);
+            } catch (\Throwable) {
+                $total = count($results);
+            }
             $response['grouped'][] = [
                 'type'    => $type,
                 'label'   => $badgeLabels[$type] ?? $type,
