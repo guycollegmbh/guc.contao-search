@@ -26,6 +26,9 @@ services:
     Guc\SearchBundle\Indexer\EventIndexer:
         tags: ['guc.search.indexer']
 
+    Guc\SearchBundle\Indexer\MemberIndexer:
+        tags: ['guc.search.indexer']
+
     Guc\SearchBundle\Indexer\CustomTableIndexer:
         tags: ['guc.search.indexer']
 

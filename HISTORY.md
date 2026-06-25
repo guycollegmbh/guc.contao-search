@@ -88,6 +88,31 @@ aufgelöst per pid-Traversal bis zur Root-Seite.
 
 ---
 
+## 2026-06-25 — MemberIndexer: Team-Mitglieder aus tl_member
+
+**Hintergrund:** Team-Mitglieder wurden nicht gefunden, da sie in `tl_member`
+(Contao-Mitgliederverwaltung) gespeichert sind, nicht als Content-Elemente auf Seiten.
+
+**Implementierung:** Neuer `MemberIndexer` (Typ `member`):
+- Liest aktive Mitglieder aus `tl_member` (nicht disabled, start/stop berücksichtigt)
+- Title = `firstname + lastname`, Body = `company` (Rolle/Position)
+- URL-Seite wird automatisch ermittelt: zuerst nach Modul-Typ (`member%`, `mm_%`,
+  `listing`, `%team%`), Fallback: Seite mit `team`/`mitglieder`/`personal` im Alias
+- Sprache und URL-Suffix über pid-Traversal zur Root-Seite
+- Badge: "Team" (grüner Badge `#d0f0e8`)
+
+**Aktualisiert:**
+- `services.yaml`: MemberIndexer mit Tag `guc.search.indexer` registriert
+- `SearchRepository::searchGrouped()`: Typ `member` in Typen-Liste aufgenommen
+- `SearchApiController`: `member` in Whitelist + badgeLabel 'Team'
+- `SearchIndexController`: `member` in ALLOWED_TYPES + lastIndexed-Loop
+- Backend-Template: member-Zeile in Tabelle
+- `search.css`: Badge-Farbe für `member`
+
+**Commit:** `TBD`
+
+---
+
 ## 2026-06-18 — Fixes nach erster Installation auf lernwerk.guycolle.dev
 
 ### Template nicht gefunden

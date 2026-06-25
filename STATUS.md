@@ -16,6 +16,7 @@ Zuletzt aktualisiert: 2026-06-25
 - [x] Schema-Versionierung via `PRAGMA user_version` (automatischer Rebuild bei Schema-Änderung)
 
 ### Indexer
+- [x] `MemberIndexer`: Team-Mitglieder aus `tl_member` (firstname, lastname, company/Rolle)
 - [x] `PageIndexer`: liest `tl_content`/`tl_article` direkt (unabhängig von Contaos Crawler)
 - [x] `PageIndexer`: URL-Suffix aus `tl_page.urlSuffix` der Root-Seite (kein hardcodiertes `.html`)
 - [x] `PageIndexer`: `noSearch`- und `sitemap='map_never'`-Seiten werden ausgeschlossen
