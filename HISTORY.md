@@ -109,7 +109,7 @@ aufgelöst per pid-Traversal bis zur Root-Seite.
 - Backend-Template: member-Zeile in Tabelle
 - `search.css`: Badge-Farbe für `member`
 
-**Commit:** `TBD`
+**Commit:** `a41aef9`
 
 ---
 
