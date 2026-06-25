@@ -21,6 +21,9 @@ class SearchModuleController extends AbstractFrontendModuleController
 
         $minChars = max(1, (int) ($model->guc_search_min_chars ?: 2));
 
+        $GLOBALS['TL_CSS'][]        = 'bundles/gucsearch/search.css|static';
+        $GLOBALS['TL_JAVASCRIPT'][] = 'bundles/gucsearch/search.js|static';
+
         $template->set('language', $language);
         $template->set('apiUrl', '/api/search');
         $template->set('minChars', $minChars);
