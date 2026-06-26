@@ -11,7 +11,7 @@ use Contao\ModuleModel;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-#[AsFrontendModule(category: 'search', template: 'frontend_module/guc_search')]
+#[AsFrontendModule(type: 'guc_search', category: 'search', template: 'frontend_module/guc_search')]
 class SearchModuleController extends AbstractFrontendModuleController
 {
     protected function getResponse(FragmentTemplate $template, ModuleModel $model, Request $request): Response
