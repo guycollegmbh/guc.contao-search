@@ -78,6 +78,7 @@
 .guc-search__badge--news   { background: #fff3cd; color: #664d03; }
 .guc-search__badge--event  { background: #f8d7da; color: #842029; }
 .guc-search__badge--member { background: #d0f0e8; color: #0a4a35; }
+.guc-search__badge--faq    { background: #fde8d0; color: #7a3500; }
 .guc-search__badge--custom { background: #e2d9f3; color: #3d0a91; }
 
 .guc-search__count {

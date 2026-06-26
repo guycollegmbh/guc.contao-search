@@ -29,8 +29,15 @@ services:
     Guc\SearchBundle\Indexer\MemberIndexer:
         tags: ['guc.search.indexer']
 
+    Guc\SearchBundle\Indexer\FaqIndexer:
+        tags: ['guc.search.indexer']
+
     Guc\SearchBundle\Indexer\CustomTableIndexer:
         tags: ['guc.search.indexer']
+
+    Guc\SearchBundle\Cron\RebuildSearchIndexCron:
+        arguments:
+            $indexers: !tagged_iterator guc.search.indexer
 
     Guc\SearchBundle\Command\BuildSearchIndexCommand:
         arguments:

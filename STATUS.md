@@ -16,6 +16,7 @@ Zuletzt aktualisiert: 2026-06-25
 - [x] Schema-Versionierung via `PRAGMA user_version` (automatischer Rebuild bei Schema-Änderung)
 
 ### Indexer
+- [x] `FaqIndexer`: Häufige Fragen aus `tl_faq` + `tl_faq_category` (contao/faq-bundle)
 - [x] `MemberIndexer`: Team-Mitglieder aus `tl_member` (firstname, lastname, company/Rolle)
 - [x] `PageIndexer`: liest `tl_content`/`tl_article` direkt (unabhängig von Contaos Crawler)
 - [x] `PageIndexer`: URL-Suffix aus `tl_page.urlSuffix` der Root-Seite (kein hardcodiertes `.html`)
@@ -26,6 +27,7 @@ Zuletzt aktualisiert: 2026-06-25
 - [x] `CustomTableIndexer`: konfigurierbar via `tl_search_config` im Backend
 - [x] Alle Indexer: Sprache über `tl_page`-JOIN aufgelöst, URL-Suffix dynamisch
 - [x] CLI-Befehl `guc:search:index` (mit `--type=`-Filter)
+- [x] Automatisches tägliches Re-Indexieren via `RebuildSearchIndexCron` (`#[AsCronJob('daily')]`)
 - [x] Automatisches Re-Indexieren via `SearchIndexListener` (Contao DCA-Callbacks)
 
 ### API
@@ -62,6 +64,10 @@ Zuletzt aktualisiert: 2026-06-25
 - [x] Backend-Route: `ROLE_ADMIN` + CSRF-Token
 - [x] `CustomTableIndexer`: Tabellen-/Feldnamen via `^\w+$` validiert
 - [x] `unserialize()` mit `['allowed_classes' => false]`
+
+## Voraussetzungen für optionale Indexer
+
+- **FaqIndexer:** Erfordert `contao/faq-bundle` — wenn nicht installiert, gibt `index()` 0 zurück (kein Fehler)
 
 ## Bekannte Probleme / Offene Punkte
 

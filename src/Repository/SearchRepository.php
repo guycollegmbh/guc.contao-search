@@ -107,7 +107,7 @@ class SearchRepository
 
     public function searchGrouped(string $query, string $language = '', int $perGroup = 10): array
     {
-        $types = ['page', 'file', 'event', 'news', 'member', 'custom'];
+        $types = ['page', 'file', 'event', 'news', 'member', 'faq', 'custom'];
         $groups = [];
 
         foreach ($types as $type) {

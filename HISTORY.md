@@ -88,6 +88,39 @@ aufgelöst per pid-Traversal bis zur Root-Seite.
 
 ---
 
+## 2026-06-26 — Automatischer Cron-Job + FAQ-Indexer
+
+### Feature: Automatisches tägliches Indexieren
+
+**Implementierung:** Neuer `RebuildSearchIndexCron` mit Contao `#[AsCronJob('daily')]` Attribut.
+- Läuft täglich via Contaos Cron-System (Pseudo-Cron bei Seitenbesuchen oder externer Cron auf `/api/cron`)
+- Ruft alle registrierten Indexer nacheinander auf
+- Fehler in einzelnen Indexern werden geloggt, stoppen aber nicht die übrigen
+
+**Dateien:** `src/Cron/RebuildSearchIndexCron.php`, `config/services.yaml`
+
+---
+
+### Feature: FaqIndexer — Häufige Fragen aus tl_faq
+
+**Implementierung:** Neuer `FaqIndexer` (Typ `faq`):
+- Liest publizierte FAQs aus `tl_faq` + `tl_faq_category` (erfordert `contao/faq-bundle`)
+- Title = `question`, Body = `answer` (HTML-Tags entfernt)
+- URL = `/{reader-seite-alias}/{faq-alias}` + URL-Suffix aus Root-Seite
+- Sprache über `tl_faq_category.jumpTo` → `tl_page` aufgelöst
+- Badge: "FAQ" (orangebrauner Badge)
+- Wenn `tl_faq` nicht existiert (Bundle nicht installiert), gibt `index()` 0 zurück
+
+**Aktualisiert:**
+- `config/services.yaml`: FaqIndexer mit Tag `guc.search.indexer` registriert
+- `SearchRepository::searchGrouped()`: Typ `faq` in Typen-Liste
+- `SearchApiController`: `faq` in Whitelist + badgeLabel 'FAQ'
+- `SearchIndexController`: `faq` in ALLOWED_TYPES + lastIndexed-Loop
+- Backend-Template: faq-Zeile in allen Typ-Schleifen
+- `search.css`: Badge-Farbe für `faq` (`#fde8d0` / `#7a3500`)
+
+---
+
 ## 2026-06-25 — MemberIndexer: Team-Mitglieder aus tl_member
 
 **Hintergrund:** Team-Mitglieder wurden nicht gefunden, da sie in `tl_member`

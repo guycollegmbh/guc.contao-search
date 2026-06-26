@@ -17,7 +17,7 @@ use Twig\Environment;
 #[IsGranted('ROLE_ADMIN')]
 class SearchIndexController extends AbstractController
 {
-    private const ALLOWED_TYPES = ['all', 'page', 'file', 'news', 'event', 'member', 'custom'];
+    private const ALLOWED_TYPES = ['all', 'page', 'file', 'news', 'event', 'member', 'faq', 'custom'];
 
     /** @param IndexerInterface[] $indexers */
     public function __construct(
@@ -53,7 +53,7 @@ class SearchIndexController extends AbstractController
         $dbSize = file_exists($dbPath) ? round(filesize($dbPath) / 1024, 1) : 0;
 
         $lastIndexed = [];
-        foreach (['page', 'file', 'news', 'event', 'member', 'custom'] as $type) {
+        foreach (['page', 'file', 'news', 'event', 'member', 'faq', 'custom'] as $type) {
             $lastIndexed[$type] = $this->searchRepository->getMeta('last_index_' . $type);
         }
 

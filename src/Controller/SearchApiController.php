@@ -32,7 +32,7 @@ class SearchApiController extends AbstractController
         }
 
         // Whitelist validation
-        $allowedTypes = ['page', 'file', 'news', 'event', 'member', 'custom'];
+        $allowedTypes = ['page', 'file', 'news', 'event', 'member', 'faq', 'custom'];
         if ($type !== '' && !\in_array($type, $allowedTypes, true)) {
             $type = '';
         }
@@ -65,6 +65,7 @@ class SearchApiController extends AbstractController
             'news'   => 'News',
             'event'  => 'Event',
             'member' => 'Team',
+            'faq'    => 'FAQ',
             'custom' => 'Inhalt',
         ];
 

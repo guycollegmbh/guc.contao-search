@@ -10,7 +10,7 @@
     {% endif %}
 
     {% set staleTypes = [] %}
-    {% for type in ['page', 'file', 'news', 'event', 'member', 'custom'] %}
+    {% for type in ['page', 'file', 'news', 'event', 'member', 'faq', 'custom'] %}
         {% if lastIndexed[type] is not null and (stats[type] ?? 0) > 0 %}
             {% if ("now"|date('U') - lastIndexed[type]|date('U')) > 86400 %}
                 {% set staleTypes = staleTypes|merge([type]) %}
@@ -37,7 +37,7 @@
             </tr>
         </thead>
         <tbody>
-            {% for type in ['page', 'file', 'news', 'event', 'member', 'custom'] %}
+            {% for type in ['page', 'file', 'news', 'event', 'member', 'faq', 'custom'] %}
             {% set isStale = type in staleTypes %}
             <tr class="{{ loop.index is odd ? 'odd' : 'even' }}">
                 <td><strong>{{ type|capitalize }}</strong>{% if isStale %} <span style="color:#cc0000">⚠</span>{% endif %}</td>
