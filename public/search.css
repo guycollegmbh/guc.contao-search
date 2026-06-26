@@ -244,10 +244,9 @@
 
 .guc-search__title mark,
 .guc-search__excerpt mark {
-    background: #f6bcd1;
+    background: rgba(246, 188, 209, 0.6);
     color: inherit;
     padding: 0 2px;
-    opacity: 0.8;
 }
 
 /* ── States ── */
