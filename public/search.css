@@ -164,9 +164,6 @@
         box-shadow: none;
     }
 
-    .guc-search .guc-search__tab--active {
-        box-shadow: inset -3px 0 0 #007bff;
-    }
 }
 
 /* ── Badges ── */
