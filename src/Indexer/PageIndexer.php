@@ -74,6 +74,16 @@ class PageIndexer implements IndexerInterface
             AND (sitemap IS NULL OR sitemap != 'map_never')
         ");
 
+        // Primary: Contao's own search index (includes RSCE and all custom elements)
+        $searchRows = $this->db->fetchAllAssociative("
+            SELECT pid, GROUP_CONCAT(text, ' ') AS body
+            FROM tl_search
+            WHERE text != ''
+            GROUP BY pid
+        ");
+        $searchByPage = array_column($searchRows, 'body', 'pid');
+
+        // Fallback: direct tl_content read for pages not yet crawled by Contao
         $contentRows = $this->db->fetchAllAssociative("
             SELECT a.pid AS pageId, c.text, c.headline
             FROM tl_article a
@@ -81,31 +91,36 @@ class PageIndexer implements IndexerInterface
             WHERE a.published = '1'
             AND c.type IN ('text', 'headline', 'html', 'list')
         ");
-
         $contentByPage = [];
         foreach ($contentRows as $row) {
             $contentByPage[(int) $row['pageId']][] = $row;
         }
 
         foreach ($pages as $page) {
-            $body = '';
-            foreach ($contentByPage[(int) $page['id']] ?? [] as $content) {
-                $body .= ' ' . strip_tags($content['text'] ?? '');
-                if (!empty($content['headline'])) {
-                    $hl = @unserialize($content['headline'], ['allowed_classes' => false]);
-                    if (is_array($hl) && isset($hl['value'])) {
-                        $body .= ' ' . strip_tags($hl['value']);
+            $pageId = (int) $page['id'];
+
+            if (isset($searchByPage[$pageId])) {
+                $body = strip_tags($searchByPage[$pageId]);
+            } else {
+                $body = '';
+                foreach ($contentByPage[$pageId] ?? [] as $content) {
+                    $body .= ' ' . strip_tags($content['text'] ?? '');
+                    if (!empty($content['headline'])) {
+                        $hl = @unserialize($content['headline'], ['allowed_classes' => false]);
+                        if (is_array($hl) && isset($hl['value'])) {
+                            $body .= ' ' . strip_tags($hl['value']);
+                        }
                     }
                 }
             }
 
             $this->searchRepository->insert([
-                'id'       => 'page_' . $page['id'],
+                'id'       => 'page_' . $pageId,
                 'type'     => 'page',
-                'language' => $resolveLanguage((int) $page['id']),
+                'language' => $resolveLanguage($pageId),
                 'title'    => strip_tags($page['title']),
                 'body'     => trim($body),
-                'url'      => '/' . ($page['alias'] ?? '') . $resolveSuffix((int) $page['id']),
+                'url'      => '/' . ($page['alias'] ?? '') . $resolveSuffix($pageId),
                 'badge'    => 'Seite',
             ]);
             $count++;
