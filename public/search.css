@@ -63,9 +63,9 @@
 
 .guc-search__badge {
     display: inline-block;
-    padding: 2px 8px;
+    padding: 3px 11px;
     border-radius: 12px;
-    font-size: 0.75rem;
+    font-size: 1rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -82,7 +82,7 @@
 .guc-search__badge--custom { background: #e2d9f3; color: #3d0a91; }
 
 .guc-search__count {
-    font-size: 0.8rem;
+    font-size: 1rem;
     color: #999;
 }
 
