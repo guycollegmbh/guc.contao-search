@@ -23,7 +23,6 @@ class CustomTableIndexer implements IndexerInterface
 
     public function index(): int
     {
-        $this->searchRepository->clearType('custom');
         $count = 0;
 
         // Load configurations from tl_search_config
@@ -35,6 +34,12 @@ class CustomTableIndexer implements IndexerInterface
             $this->logger?->warning('GUC Search: CustomTableIndexer failed loading config - ' . $e->getMessage());
             return 0;
         }
+
+        if (empty($configs)) {
+            return 0;
+        }
+
+        $this->searchRepository->clearType('custom');
 
         foreach ($configs as $config) {
             $count += $this->indexTable($config);

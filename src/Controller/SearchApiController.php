@@ -112,10 +112,22 @@ class SearchApiController extends AbstractController
             'id'             => $row['id'],
             'type'           => $row['type'],
             'title'          => $row['title'],
-            'titleHighlight' => strip_tags($row['titleHighlight'] ?? '', '<mark>'),
-            'url'            => $row['url'],
+            'titleHighlight' => $this->sanitizeSnippet($row['titleHighlight'] ?? ''),
+            'url'            => $this->sanitizeUrl($row['url'] ?? ''),
             'badge'          => $row['badge'],
-            'excerpt'        => strip_tags($row['excerpt'] ?? '', '<mark>'),
+            'excerpt'        => $this->sanitizeSnippet($row['excerpt'] ?? ''),
         ];
+    }
+
+    /** Strips all tags except bare <mark> (no attributes) to prevent event-handler injection via innerHTML. */
+    private function sanitizeSnippet(string $html): string
+    {
+        return preg_replace('/<mark\b[^>]+>/i', '<mark>', strip_tags($html, '<mark>'));
+    }
+
+    /** Ensures URLs are relative paths; rejects javascript: and other non-path schemes. */
+    private function sanitizeUrl(string $url): string
+    {
+        return str_starts_with($url, '/') ? $url : '/';
     }
 }

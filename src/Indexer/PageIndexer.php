@@ -21,7 +21,6 @@ class PageIndexer implements IndexerInterface
 
     public function index(): int
     {
-        $this->searchRepository->clearType('page');
         $count = 0;
 
         // Build pid -> page map and resolve language + urlSuffix by walking up to root
@@ -97,6 +96,8 @@ class PageIndexer implements IndexerInterface
         foreach ($contentRows as $row) {
             $contentByPage[(int) $row['pageId']][] = $row;
         }
+
+        $this->searchRepository->clearType('page');
 
         foreach ($pages as $page) {
             $pageId = (int) $page['id'];

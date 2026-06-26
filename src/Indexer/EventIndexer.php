@@ -23,7 +23,6 @@ class EventIndexer implements IndexerInterface
 
     public function index(): int
     {
-        $this->searchRepository->clearType('event');
         $count = 0;
 
         try {
@@ -41,6 +40,12 @@ class EventIndexer implements IndexerInterface
             $this->logger?->warning('GUC Search: EventIndexer failed - ' . $e->getMessage());
             return 0;
         }
+
+        if (empty($events)) {
+            return 0;
+        }
+
+        $this->searchRepository->clearType('event');
 
         $allPages = $this->db->fetchAllAssociative("SELECT id, pid, type, alias, urlSuffix FROM tl_page");
         $pageMap = array_column($allPages, null, 'id');
