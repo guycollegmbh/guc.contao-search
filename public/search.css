@@ -116,7 +116,7 @@
 .guc-search__list {
     list-style: none;
     margin: 0;
-    padding: 8px 0;
+    padding: 15px;
 }
 
 /* ── Desktop: Sidebar links ── */
@@ -142,11 +142,6 @@
         width: 100%;
         padding: 8px 14px;
         box-shadow: none;
-    }
-
-    .guc-search .guc-search__tab--active {
-        background-color: #f0f4ff;
-        box-shadow: inset -3px 0 0 #007bff;
     }
 }
 
@@ -175,7 +170,8 @@
 /* ── Result items ── */
 
 .guc-search__item {
-    border-radius: 4px;
+    margin-top: 15px; 
+    margin-bottom: 15px;
 }
 
 .guc-search__link {
