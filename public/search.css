@@ -33,13 +33,13 @@
     -webkit-appearance: none;
     border: none;
     cursor: pointer;
-    font-size: v1.325rem;
+    font-size: 1.325rem;
     line-height: normal;
     font-weight: 600;
     color: #fff;
     background-image: linear-gradient(to right, rgb(227, 6, 19) 0%, rgb(238, 123, 169) 51%, rgb(227, 6, 19) 100%);
     background-size: 210% auto;
-    border-radius: 2px;
+    border-radius: 4px;
     padding: 5px 14px;
     transition: background-position .2s linear;
     text-align: center;
