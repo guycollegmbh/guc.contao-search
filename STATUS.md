@@ -1,6 +1,6 @@
 # STATUS
 
-Zuletzt aktualisiert: 2026-06-25
+Zuletzt aktualisiert: 2026-06-26
 
 ## Entwicklungsstand
 
@@ -18,7 +18,8 @@ Zuletzt aktualisiert: 2026-06-25
 ### Indexer
 - [x] `FaqIndexer`: Häufige Fragen aus `tl_faq` + `tl_faq_category` (contao/faq-bundle)
 - [x] `MemberIndexer`: Team-Mitglieder aus `tl_member` (firstname, lastname, company/Rolle)
-- [x] `PageIndexer`: liest `tl_content`/`tl_article` direkt (unabhängig von Contaos Crawler)
+- [x] `PageIndexer`: `tl_search` als primäre Quelle (enthält RSCE/Custom-Elemente), `tl_content` als Fallback
+- [x] `PageIndexer`: `tl_search`-Query filtert nur publizierte Seiten (kein Stale-Content)
 - [x] `PageIndexer`: URL-Suffix aus `tl_page.urlSuffix` der Root-Seite (kein hardcodiertes `.html`)
 - [x] `PageIndexer`: `noSearch`- und `sitemap='map_never'`-Seiten werden ausgeschlossen
 - [x] `NewsIndexer`: Volltext aus `tl_content` (ptable='tl_news'), nicht nur Teaser
@@ -32,13 +33,15 @@ Zuletzt aktualisiert: 2026-06-25
 
 ### API
 - [x] `GET /api/search` — JSON mit Gruppierung (ohne `type`-Filter) oder Paginierung (mit `type`)
-- [x] Query-Parameter: `q`, `lang`, `type`, `page`
+- [x] Query-Parameter: `q`, `lang`, `type`, `page`, `types`
+- [x] `?types=`-Filter (Modul-Konfiguration) gilt auch für Single-Type-Pfad `?type=`
 - [x] Sprachfilter: `AND (language = :lang OR language = '')`
 - [x] Title-Highlighting: `snippet()` auf title-Spalte, `<mark>`-Tags
 - [x] Excerpt-Highlighting: `snippet()` auf body-Spalte
 - [x] Fehlerresistenz: `try-catch` um Datenbankoperationen, JSON statt 500-HTML
 - [x] HTTP `Cache-Control: private, max-age=30`
 - [x] Input-Validierung: Länge, Typ-Whitelist, Sprach-Regex
+- [x] Grouped-Request: 8 SQLite-Queries statt 14 (1× `COUNT GROUP BY type` statt 7× `countByType`)
 
 ### Frontend
 - [x] Enter-Taste leitet auf konfigurierte Ergebnisseite weiter (`?q=suchbegriff`)
@@ -76,8 +79,6 @@ Zuletzt aktualisiert: 2026-06-25
 
 ### Mittel
 
-1. ~~`guc_search_resultsPage` nicht implementiert~~ — **erledigt** (2026-06-26)
-
 ### Niedrig
 
 2. **Kein Rate-Limiting in der API**
@@ -108,6 +109,11 @@ php bin/console guc:search:index
 **Wichtig:** Bei Schema-Änderungen (erkennbar an Einträgen in HISTORY.md)
 wird `search.db` beim ersten Request automatisch neu angelegt.
 Ein anschliessender `guc:search:index` ist zwingend erforderlich.
+
+## Kompatibilität
+
+- **PHP:** `^8.2` (deckt 8.2, 8.3, 8.4 ab — vollständig rückwärtskompatibel)
+- **Contao:** `^5.3` (deckt 5.3, 5.4, 5.5, 5.6, 5.7+ ab — nur stabile Core-APIs verwendet)
 
 ## Abhängigkeiten / Voraussetzungen
 

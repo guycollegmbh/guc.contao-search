@@ -53,6 +53,10 @@ class SearchApiController extends AbstractController
         }
 
         if ($type !== '') {
+            // C2: block single-type requests for types disabled by module config
+            if (!empty($enabledTypes) && !\in_array($type, $enabledTypes, true)) {
+                return $this->json(['results' => [], 'total' => 0, 'page' => 1, 'pages' => 0, 'query' => $query]);
+            }
             $results = $this->searchRepository->searchByType($query, $type, $language, $perPage, $offset);
             $total = $this->searchRepository->countByType($query, $type, $language);
 
@@ -67,6 +71,8 @@ class SearchApiController extends AbstractController
 
         try {
             $grouped = $this->searchRepository->searchGrouped($query, $language, $perPage, $enabledTypes);
+            // C8: single COUNT query instead of one countByType() call per type
+            $counts = $this->searchRepository->countGrouped($query, $language, $enabledTypes);
         } catch (\Throwable $e) {
             return $this->json(['grouped' => [], 'query' => $query, 'error' => 'search_failed']);
         }
@@ -84,11 +90,7 @@ class SearchApiController extends AbstractController
         $response = ['grouped' => [], 'query' => $query];
 
         foreach ($grouped as $type => $results) {
-            try {
-                $total = $this->searchRepository->countByType($query, $type, $language);
-            } catch (\Throwable) {
-                $total = count($results);
-            }
+            $total = $counts[$type] ?? count($results);
             $response['grouped'][] = [
                 'type'    => $type,
                 'label'   => $badgeLabels[$type] ?? $type,

@@ -88,6 +88,40 @@ aufgelöst per pid-Traversal bis zur Root-Seite.
 
 ---
 
+## 2026-06-26 — Code-Review-Fixes (C2 / C5 / C7 / C8)
+
+### C2: enabledTypes-Filter gilt jetzt auch für Single-Type-Pfad
+
+**Problem:** `?type=member` lieferte Resultate auch wenn `member` in der Modul-Konfiguration deaktiviert war, da der `enabledTypes`-Check nur beim gruppierten Pfad griff.
+
+**Fix:** In `SearchApiController` wird vor dem `searchByType()`-Aufruf geprüft ob `$type` in `$enabledTypes` liegt. Falls nicht, wird `{results:[], total:0, pages:0}` zurückgegeben.
+
+---
+
+### C5: FAQ-Einträge ohne Reader-Seite werden übersprungen
+
+**Problem:** FAQ-Kategorien mit `jumpTo=0` (keine Leserseite konfiguriert) erzeugten tote URLs der Form `/faq/{alias}.html`.
+
+**Fix:** `FaqIndexer` überspringt FAQ-Einträge mit `$jumpTo === 0`.
+
+---
+
+### C7: Veraltete tl_search-Einträge gefiltert
+
+**Problem:** Der `tl_search`-Query holte alle Zeilen inkl. veralteter Einträge für gelöschte/depublizierte Seiten.
+
+**Fix:** `INNER JOIN tl_page` mit `published='1' AND type='regular'`-Bedingung — nur Seiten im aktuellen Index werden geladen.
+
+---
+
+### C8: 14 SQLite-Queries pro Grouped-Request → 8
+
+**Problem:** `searchGrouped()` feuerte 7 MATCH-Queries, danach weitere 7 `countByType()`-Calls = 14 Queries pro API-Request.
+
+**Fix:** Neue Methode `SearchRepository::countGrouped()` aggregiert alle Counts in einem einzigen `SELECT type, COUNT(*) GROUP BY type`-Query. `SearchApiController` ruft `countGrouped()` einmalig auf statt 7×`countByType()`. Total: 7 MATCH + 1 COUNT = 8 Queries.
+
+---
+
 ## 2026-06-26 — Ergebnisseite + Cron-Job + FAQ-Indexer
 
 ### Feature: Ergebnisseite via Modul-Konfiguration

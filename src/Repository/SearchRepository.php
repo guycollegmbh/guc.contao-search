@@ -194,6 +194,42 @@ class SearchRepository
         return (int) $stmt->fetchColumn();
     }
 
+    public function countGrouped(string $query, string $language = '', array $enabledTypes = []): array
+    {
+        $query = $this->sanitizeQuery($query);
+        if (empty($query)) {
+            return [];
+        }
+
+        $ftsQuery = $query . '*';
+        $params = [':query' => $ftsQuery];
+        $conditions = ['search_index MATCH :query'];
+
+        if ($language !== '') {
+            $conditions[] = "(language = :language OR language = '')";
+            $params[':language'] = $language;
+        }
+
+        if (!empty($enabledTypes)) {
+            $placeholders = implode(',', array_map(static fn(int $i) => ':etype' . $i, array_keys($enabledTypes)));
+            $conditions[] = 'type IN (' . $placeholders . ')';
+            foreach ($enabledTypes as $i => $t) {
+                $params[':etype' . $i] = $t;
+            }
+        }
+
+        $sql = 'SELECT type, COUNT(*) AS cnt FROM search_index WHERE ' . implode(' AND ', $conditions) . ' GROUP BY type';
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+
+        $counts = [];
+        foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
+            $counts[$row['type']] = (int) $row['cnt'];
+        }
+
+        return $counts;
+    }
+
     public function clearType(string $type): void
     {
         $stmt = $this->pdo->prepare("DELETE FROM search_index WHERE type = :type");

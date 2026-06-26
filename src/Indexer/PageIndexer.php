@@ -74,12 +74,14 @@ class PageIndexer implements IndexerInterface
             AND (sitemap IS NULL OR sitemap != 'map_never')
         ");
 
-        // Primary: Contao's own search index (includes RSCE and all custom elements)
+        // Primary: Contao's own search index (includes RSCE and all custom elements).
+        // C7: join tl_page so stale rows for unpublished/deleted pages are excluded.
         $searchRows = $this->db->fetchAllAssociative("
-            SELECT pid, GROUP_CONCAT(text, ' ') AS body
-            FROM tl_search
-            WHERE text != ''
-            GROUP BY pid
+            SELECT s.pid, GROUP_CONCAT(s.text, ' ') AS body
+            FROM tl_search s
+            INNER JOIN tl_page p ON p.id = s.pid AND p.published = '1' AND p.type = 'regular'
+            WHERE s.text != ''
+            GROUP BY s.pid
         ");
         $searchByPage = array_column($searchRows, 'body', 'pid');
 

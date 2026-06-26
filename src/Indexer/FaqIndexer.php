@@ -62,6 +62,10 @@ class FaqIndexer implements IndexerInterface
 
         foreach ($faqs as $faq) {
             $jumpTo = (int) $faq['jumpTo'];
+            // C5: skip FAQs whose category has no reader page configured
+            if ($jumpTo === 0) {
+                continue;
+            }
             $pageAlias = $pageMap[$jumpTo]['alias'] ?? 'faq';
             $suffix = $resolveSuffix($jumpTo);
 
