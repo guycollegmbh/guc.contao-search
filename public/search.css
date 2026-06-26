@@ -60,6 +60,7 @@
     flex-direction: row;
     gap: 4px;
     padding: 8px;
+    background: #fff;
     overflow-x: auto;
     border-bottom: 1px solid #f0f0f0;
     flex-shrink: 0;
@@ -68,17 +69,23 @@
 .guc-search__tabs::-webkit-scrollbar { display: none; }
 
 .guc-search__tab {
+    /* full reset — Contao-Themes stylen <button> oft dunkel */
+    appearance: none;
+    -webkit-appearance: none;
     display: flex;
     align-items: center;
     gap: 6px;
     padding: 5px 10px;
     border: none;
-    background: none;
+    background: transparent;
+    color: #212529;
+    font: inherit;
     cursor: pointer;
     border-radius: 6px;
     white-space: nowrap;
     flex-shrink: 0;
     transition: background 0.15s;
+    text-align: left;
 }
 
 .guc-search__tab:hover {
@@ -120,7 +127,7 @@
         flex-direction: column;
         gap: 2px;
         padding: 8px 0;
-        width: 160px;
+        width: 170px;
         border-bottom: none;
         border-right: 1px solid #f0f0f0;
         overflow-x: visible;

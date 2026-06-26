@@ -122,7 +122,7 @@
                     return;
                 }
 
-                var tabs = document.createElement('nav');
+                var tabs = document.createElement('div');
                 tabs.className = 'guc-search__tabs';
                 tabs.setAttribute('role', 'tablist');
                 tabs.setAttribute('aria-label', 'Kategorien');
