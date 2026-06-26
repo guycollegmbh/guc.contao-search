@@ -16,6 +16,7 @@
     border-radius: 4px;
     font-size: 0.925rem;
     transition: border-color 0.2s;
+    height: 42px;
 }
 
 .guc-search__input:focus {
@@ -33,7 +34,7 @@
     -webkit-appearance: none;
     border: none;
     cursor: pointer;
-    font-size: 1.325rem;
+    font-size: 1.5rem;
     line-height: normal;
     font-weight: 600;
     color: #fff;
@@ -43,6 +44,7 @@
     padding: 5px 14px;
     transition: background-position .2s linear;
     text-align: center;
+    height: 42px;
 }
 
 .guc-search .guc-search__clear:hover {
