@@ -91,15 +91,6 @@
     line-height: normal;
 }
 
-.guc-search .guc-search__tab:hover {
-    background-color: #f0f4ff;
-}
-
-.guc-search .guc-search__tab--active {
-    background-color: #f0f4ff;
-    box-shadow: inset 0 -2px 0 #007bff;
-}
-
 .guc-search__tab-count {
     font-size: 0.8rem;
     color: #999;
