@@ -215,12 +215,20 @@ class SearchRepository
             ':id'       => $record['id'],
             ':type'     => $record['type'],
             ':language' => $record['language'] ?? '',
-            ':title'    => $record['title'] ?? '',
-            ':body'     => $record['body'] ?? '',
+            ':title'    => $this->cleanText($record['title'] ?? ''),
+            ':body'     => $this->cleanText($record['body'] ?? ''),
             ':url'      => $record['url'] ?? '',
             ':badge'    => $record['badge'] ?? '',
             ':updated'  => $record['updated'] ?? date('Y-m-d H:i:s'),
         ]);
+    }
+
+    private function cleanText(string $text): string
+    {
+        $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        // Remove soft hyphens and other invisible format characters
+        $text = preg_replace('/[\x{00AD}\x{200B}\x{FEFF}]/u', '', $text);
+        return trim($text);
     }
 
     public function setMeta(string $key, string $value): void
