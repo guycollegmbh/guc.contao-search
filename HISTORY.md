@@ -88,6 +88,30 @@ aufgelöst per pid-Traversal bis zur Root-Seite.
 
 ---
 
+## 2026-06-26 — Overlay-Redesign: Sidebar/Tabs-Navigation
+
+### Feature: Kategorie-Navigation im Suchergebnis-Overlay
+
+**Vorher:** Lange vertikale Liste aller Kategorien untereinander.
+
+**Nachher:**
+- **Mobil** (`< 520px`): Horizontale Tab-Leiste oben (scrollbar, ohne Scrollbalken), Resultate darunter
+- **Desktop** (`≥ 520px`): Sidebar links (170px) mit vertikalen Tabs, roter Balken am rechten Rand des aktiven Tabs
+- Klick auf Kategorie wechselt die Resultate; Keyboard-Navigation bleibt auf das aktive Panel beschränkt
+
+**CSS-Besonderheiten:**
+- `.guc-search .guc-search__tab` und `.guc-search .guc-search__clear` mit erhöhter Spezifität `(0,2,0,0)` um das Contao-Theme-Selektor `[type=button]` zu überschreiben (`background-color: #4f4f51`, `border: 2px solid #4f4f51`, `color: #fff`)
+- `<div role="tablist">` statt `<nav>` um Theme-`nav`-Stile zu vermeiden
+- Hover/Focus/Active vollständig überschrieben (`background-color: transparent`, `border-color: transparent`)
+
+**Styling-Details:**
+- Brand-Rot `#e30613` durchgehend: Input-Focus-Border, Tab-Indikatoren, Lade-Spinner, Clear-Button-Gradient
+- Clear-Button: roter Gradient (`rgb(227,6,19)` → `rgb(238,123,169)` → `rgb(227,6,19)`), 42px Höhe, Border-Radius 4px
+- Mark-Highlighting: `rgba(246, 188, 209, 0.6)` (rosa, 60% Deckkraft — nur Hintergrund, nicht Text)
+- `font-size: 0.925rem` für Input, Buttons, Badges, Tab-Count
+
+---
+
 ## 2026-06-26 — Code-Review-Fixes (C2 / C5 / C7 / C8)
 
 ### C2: enabledTypes-Filter gilt jetzt auch für Single-Type-Pfad

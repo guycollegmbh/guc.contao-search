@@ -82,7 +82,7 @@ class SearchApiController extends AbstractController
             'file'   => 'Dateien',
             'news'   => 'News',
             'event'  => 'Events',
-            'member' => 'Team/Mitglieder',
+            'member' => 'Team',
             'faq'    => 'FAQ',
             'custom' => 'Inhalt',
         ];
