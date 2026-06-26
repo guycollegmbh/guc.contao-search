@@ -168,15 +168,6 @@
                     groupEl.appendChild(header);
                     groupEl.appendChild(list);
 
-                    if (group.hasMore) {
-                        var more = document.createElement('a');
-                        var moreBase = resultsUrl || window.location.pathname;
-                        more.href = moreBase + '?keywords=' + encodeURIComponent(query);
-                        more.className = 'guc-search__more';
-                        more.textContent = 'Mehr anzeigen';
-                        groupEl.appendChild(more);
-                    }
-
                     results.appendChild(groupEl);
 
                     if (idx < data.grouped.length - 1) {

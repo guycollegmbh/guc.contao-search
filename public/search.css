@@ -112,11 +112,6 @@
     outline-offset: -2px;
 }
 
-.guc-search__more:focus {
-    outline: 2px solid #007bff;
-    outline-offset: 2px;
-    border-radius: 2px;
-}
 
 .guc-search__title {
     display: block;
@@ -147,17 +142,6 @@
     border-top: 1px solid #f0f0f0;
 }
 
-.guc-search__more {
-    display: inline-block;
-    margin-top: 4px;
-    font-size: 0.82rem;
-    color: #007bff;
-    text-decoration: none;
-}
-
-.guc-search__more:hover {
-    text-decoration: underline;
-}
 
 .guc-search__empty {
     padding: 16px;

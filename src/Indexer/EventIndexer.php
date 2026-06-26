@@ -96,7 +96,7 @@ class EventIndexer implements IndexerInterface
                 'title'    => strip_tags($event['title']),
                 'body'     => trim($body),
                 'url'      => '/' . $pageAlias . '/' . $event['alias'] . $suffix,
-                'badge'    => 'Event',
+                'badge'    => 'Events',
             ]);
             $count++;
         }

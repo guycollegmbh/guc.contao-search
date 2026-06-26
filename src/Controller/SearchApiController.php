@@ -78,11 +78,11 @@ class SearchApiController extends AbstractController
         }
 
         $badgeLabels = [
-            'page'   => 'Seite',
-            'file'   => 'Datei',
+            'page'   => 'Seiten',
+            'file'   => 'Dateien',
             'news'   => 'News',
-            'event'  => 'Event',
-            'member' => 'Team',
+            'event'  => 'Events',
+            'member' => 'Team/Mitglieder',
             'faq'    => 'FAQ',
             'custom' => 'Inhalt',
         ];

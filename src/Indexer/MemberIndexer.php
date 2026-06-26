@@ -90,7 +90,7 @@ class MemberIndexer implements IndexerInterface
                 'title'    => $title,
                 'body'     => strip_tags($member['company'] ?? ''),
                 'url'      => '/' . $memberPageAlias . $suffix,
-                'badge'    => 'Team',
+                'badge'    => 'Team/Mitglieder',
             ]);
             $count++;
         }
