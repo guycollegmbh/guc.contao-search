@@ -23,7 +23,6 @@ class MemberIndexer implements IndexerInterface
 
     public function index(): int
     {
-        $this->searchRepository->clearType('member');
         $count = 0;
 
         try {
@@ -42,6 +41,8 @@ class MemberIndexer implements IndexerInterface
         if (empty($members)) {
             return 0;
         }
+
+        $this->searchRepository->clearType('member');
 
         // Build page tree for URL suffix and language resolution
         $allPages = $this->db->fetchAllAssociative(

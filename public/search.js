@@ -78,20 +78,10 @@
             });
 
             document.addEventListener('click', function (e) {
-                if (!isPageMode && !widget.contains(e.target)) {
+                if (!widget.contains(e.target)) {
                     hideResults();
                 }
             });
-
-            // Results page mode: ?q= in URL → inline layout, no click-outside-close
-            var urlQ = new URLSearchParams(window.location.search).get('q');
-            var isPageMode = urlQ && urlQ.length >= minChars;
-            if (isPageMode) {
-                widget.classList.add('guc-search--page');
-                input.value = urlQ;
-                clearBtn.hidden = false;
-                doSearch(urlQ);
-            }
 
             function doSearch(query) {
                 if (query === currentQuery) return;
@@ -181,7 +171,7 @@
                     if (group.hasMore) {
                         var more = document.createElement('a');
                         var moreBase = resultsUrl || window.location.pathname;
-                        more.href = moreBase + '?q=' + encodeURIComponent(query) + '&type=' + group.type;
+                        more.href = moreBase + '?keywords=' + encodeURIComponent(query);
                         more.className = 'guc-search__more';
                         more.textContent = 'Mehr anzeigen';
                         groupEl.appendChild(more);

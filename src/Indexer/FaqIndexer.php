@@ -23,7 +23,6 @@ class FaqIndexer implements IndexerInterface
 
     public function index(): int
     {
-        $this->searchRepository->clearType('faq');
         $count = 0;
 
         try {
@@ -43,6 +42,8 @@ class FaqIndexer implements IndexerInterface
         if (empty($faqs)) {
             return 0;
         }
+
+        $this->searchRepository->clearType('faq');
 
         $allPages = $this->db->fetchAllAssociative("SELECT id, pid, type, alias, urlSuffix FROM tl_page");
         $pageMap = array_column($allPages, null, 'id');
