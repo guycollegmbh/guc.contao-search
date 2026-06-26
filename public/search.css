@@ -47,7 +47,13 @@
     height: 42px;
 }
 
-.guc-search .guc-search__clear:hover {
+.guc-search .guc-search__clear:hover,
+.guc-search .guc-search__clear:focus,
+.guc-search .guc-search__clear:active {
+    background-color: transparent;
+    border-color: transparent;
+    color: #fff;
+    outline: none;
     background-position: right center;
 }
 
@@ -110,8 +116,13 @@
     line-height: normal;
 }
 
-.guc-search .guc-search__tab:hover {
+.guc-search .guc-search__tab:hover,
+.guc-search .guc-search__tab:focus,
+.guc-search .guc-search__tab:active {
     background-color: transparent;
+    border-color: transparent;
+    color: #212529;
+    outline: none;
 }
 
 .guc-search .guc-search__tab--active {
