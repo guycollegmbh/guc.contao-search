@@ -38,7 +38,7 @@
                     var query = input.value.trim();
                     if (query.length >= minChars && resultsUrl) {
                         e.preventDefault();
-                        window.location.href = resultsUrl + '?q=' + encodeURIComponent(query);
+                        window.location.href = resultsUrl + '?keywords=' + encodeURIComponent(query);
                     }
                 } else if (e.key === 'Escape') {
                     hideResults();
@@ -77,14 +77,16 @@
             });
 
             document.addEventListener('click', function (e) {
-                if (!widget.contains(e.target)) {
+                if (!isPageMode && !widget.contains(e.target)) {
                     hideResults();
                 }
             });
 
-            // Pre-fill and search if ?q= is in URL (results page)
+            // Results page mode: ?q= in URL → inline layout, no click-outside-close
             var urlQ = new URLSearchParams(window.location.search).get('q');
-            if (urlQ && urlQ.length >= minChars) {
+            var isPageMode = urlQ && urlQ.length >= minChars;
+            if (isPageMode) {
+                widget.classList.add('guc-search--page');
                 input.value = urlQ;
                 clearBtn.hidden = false;
                 doSearch(urlQ);
