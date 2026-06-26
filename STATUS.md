@@ -1,6 +1,6 @@
 # STATUS
 
-Zuletzt aktualisiert: 2026-06-26
+Zuletzt aktualisiert: 2026-06-26 (Session 2)
 
 ## Entwicklungsstand
 
@@ -44,18 +44,18 @@ Zuletzt aktualisiert: 2026-06-26
 - [x] Grouped-Request: 8 SQLite-Queries statt 14 (1× `COUNT GROUP BY type` statt 7× `countByType`)
 
 ### Frontend
-- [x] Enter-Taste leitet auf konfigurierte Ergebnisseite weiter (`?q=suchbegriff`)
-- [x] Ergebnisseite füllt Suchfeld aus URL-Parameter `?q=` vor und startet Suche automatisch
-- [x] "Mehr anzeigen"-Links zeigen auf Ergebnisseite (`resultsUrl?q=...&type=...`)
+- [x] Enter-Taste leitet auf konfigurierte Ergebnisseite weiter (`?keywords=suchbegriff`)
 - [x] Live-Suche mit Debounce (400 ms) und `AbortController`
 - [x] `DOMContentLoaded`-Guard (Script-Placement unabhängig)
-- [x] Lade-Spinner (CSS-Animation) während API-Fetch
-- [x] Tastaturnavigation: `ArrowDown`/`ArrowUp` zwischen Resultaten, `Escape` schliesst
-- [x] Fokus-Styles für Keyboard-User
-- [x] Title-Highlighting mit `<mark>`-Tags
+- [x] Lade-Spinner (CSS-Animation, Brand-Rot `#e30613`) während API-Fetch
+- [x] Tastaturnavigation: `ArrowDown`/`ArrowUp` im aktiven Panel, `Escape` schliesst
+- [x] Title-Highlighting mit `<mark>`-Tags (rosa `rgba(246,188,209,0.6)`, nur Hintergrund)
 - [x] Mobile: `width:100%`/`max-width:100vw` verhindert Overflow
 - [x] Fehlerstatus: "Suche nicht verfügbar." bei HTTP-Fehler
-- [x] Konfiguration über `data-*`-Attribute (api-url, min-chars, debounce, lang)
+- [x] Konfiguration über `data-*`-Attribute (api-url, min-chars, debounce, lang, types, results-url)
+- [x] Overlay: Kategorie-Tabs (mobil horizontal oben, Desktop Sidebar 170px links)
+- [x] Brand-Rot `#e30613` durchgehend (Focus-Border, Tab-Indikatoren, Spinner, Clear-Gradient)
+- [x] CSS-Spezifitäts-Overrides gegen Contao-Theme-Button-Styles (`background-color: #4f4f51`)
 
 ### Backend
 - [x] Index-Verwaltung unter `/contao/guc-search` (ROLE_ADMIN + CSRF)
