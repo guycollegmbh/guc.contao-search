@@ -32,6 +32,8 @@
     padding: 4px 8px;
 }
 
+/* ── Overlay ── */
+
 .guc-search__results {
     position: absolute;
     top: 100%;
@@ -46,20 +48,99 @@
     box-shadow: 0 4px 16px rgba(0,0,0,0.12);
     z-index: 1000;
     max-height: 80vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ── Tabs (mobile: horizontal oben) ── */
+
+.guc-search__tabs {
+    display: flex;
+    flex-direction: row;
+    gap: 4px;
+    padding: 8px;
+    overflow-x: auto;
+    border-bottom: 1px solid #f0f0f0;
+    flex-shrink: 0;
+    scrollbar-width: none;
+}
+.guc-search__tabs::-webkit-scrollbar { display: none; }
+
+.guc-search__tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    border-radius: 6px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background 0.15s;
+}
+
+.guc-search__tab:hover {
+    background: #f0f4ff;
+}
+
+.guc-search__tab--active {
+    background: #f0f4ff;
+    box-shadow: inset 0 -2px 0 #007bff;
+}
+
+.guc-search__tab-count {
+    font-size: 0.8rem;
+    color: #999;
+}
+
+/* ── Panels ── */
+
+.guc-search__panels {
+    flex: 1;
     overflow-y: auto;
+    min-height: 0;
+}
+
+.guc-search__list {
+    list-style: none;
+    margin: 0;
     padding: 8px 0;
 }
 
-.guc-search__group {
-    padding: 8px 16px;
+/* ── Desktop: Sidebar links ── */
+
+@media (min-width: 520px) {
+    .guc-search__results {
+        flex-direction: row;
+    }
+
+    .guc-search__tabs {
+        flex-direction: column;
+        gap: 2px;
+        padding: 8px 0;
+        width: 160px;
+        border-bottom: none;
+        border-right: 1px solid #f0f0f0;
+        overflow-x: visible;
+        overflow-y: auto;
+    }
+
+    .guc-search__tab {
+        border-radius: 0;
+        width: 100%;
+        padding: 8px 14px;
+        box-shadow: none;
+    }
+
+    .guc-search__tab--active {
+        background: #f0f4ff;
+        box-shadow: inset -3px 0 0 #007bff;
+    }
 }
 
-.guc-search__group-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
-}
+/* ── Badges ── */
 
 .guc-search__badge {
     display: inline-block;
@@ -81,16 +162,7 @@
 .guc-search__badge--faq    { background: #fde8d0; color: #7a3500; }
 .guc-search__badge--custom { background: #e2d9f3; color: #3d0a91; }
 
-.guc-search__count {
-    font-size: 0.925rem;
-    color: #999;
-}
-
-.guc-search__list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-}
+/* ── Result items ── */
 
 .guc-search__item {
     border-radius: 4px;
@@ -98,7 +170,7 @@
 
 .guc-search__link {
     display: block;
-    padding: 6px 8px;
+    padding: 6px 16px;
     text-decoration: none;
     color: inherit;
     border-radius: 4px;
@@ -111,7 +183,6 @@
     outline: 2px solid #007bff;
     outline-offset: -2px;
 }
-
 
 .guc-search__title {
     display: block;
@@ -136,19 +207,13 @@
     border-radius: 2px;
 }
 
-.guc-search__divider {
-    margin: 4px 16px;
-    border: none;
-    border-top: 1px solid #f0f0f0;
-}
-
+/* ── States ── */
 
 .guc-search__empty {
     padding: 16px;
     color: #6c757d;
     text-align: center;
 }
-
 
 .guc-search__loading {
     display: flex;
