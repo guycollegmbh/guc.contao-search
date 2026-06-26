@@ -14,7 +14,7 @@
     padding: 10px 16px;
     border: 2px solid #ddd;
     border-radius: 4px;
-    font-size: 1rem;
+    font-size: 0.925rem;
     transition: border-color 0.2s;
 }
 
@@ -27,7 +27,7 @@
     background: none;
     border: none;
     cursor: pointer;
-    font-size: 1rem;
+    font-size: 0.925rem;
     color: #999;
     padding: 4px 8px;
 }
@@ -65,7 +65,7 @@
     display: inline-block;
     padding: 3px 11px;
     border-radius: 12px;
-    font-size: 1rem;
+    font-size: 0.925rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -82,7 +82,7 @@
 .guc-search__badge--custom { background: #e2d9f3; color: #3d0a91; }
 
 .guc-search__count {
-    font-size: 1rem;
+    font-size: 0.925rem;
     color: #999;
 }
 
