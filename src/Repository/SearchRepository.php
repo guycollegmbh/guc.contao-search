@@ -105,9 +105,11 @@ class SearchRepository
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
-    public function searchGrouped(string $query, string $language = '', int $perGroup = 10): array
+    public function searchGrouped(string $query, string $language = '', int $perGroup = 10, array $enabledTypes = []): array
     {
-        $types = ['page', 'file', 'event', 'news', 'member', 'faq', 'custom'];
+        $types = empty($enabledTypes)
+            ? ['page', 'file', 'event', 'news', 'member', 'faq', 'custom']
+            : $enabledTypes;
         $groups = [];
 
         foreach ($types as $type) {

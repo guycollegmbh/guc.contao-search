@@ -37,7 +37,12 @@ class SearchModuleController extends AbstractFrontendModuleController
         $template->set('minChars', $minChars);
         $template->set('debounce', 400);
         $template->set('placeholder', $GLOBALS['TL_LANG']['MSC']['guc_search_placeholder'] ?? 'Suchen…');
+        $rawTypes = \Contao\StringUtil::deserialize($model->guc_search_types, true);
+        $allowedTypes = ['page', 'news', 'event', 'member', 'faq', 'file', 'custom'];
+        $types = array_values(array_intersect($rawTypes, $allowedTypes));
+
         $template->set('resultsPageUrl', $resultsPageUrl);
+        $template->set('searchTypes', implode(',', $types));
 
         return $template->getResponse();
     }

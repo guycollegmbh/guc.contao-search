@@ -12,6 +12,7 @@
             const debounce = parseInt(widget.dataset.debounce || '400', 10);
             const lang = widget.dataset.lang || '';
             const resultsUrl = widget.dataset.resultsUrl || '';
+            const typesFilter = widget.dataset.types || '';
 
             let timer = null;
             let currentQuery = '';
@@ -104,7 +105,7 @@
                 results.innerHTML = '<div class="guc-search__loading" role="status" aria-label="Suche läuft…"></div>';
                 results.hidden = false;
 
-                var url = apiUrl + '?q=' + encodeURIComponent(query) + (lang ? '&lang=' + lang : '');
+                var url = apiUrl + '?q=' + encodeURIComponent(query) + (lang ? '&lang=' + lang : '') + (typesFilter ? '&types=' + encodeURIComponent(typesFilter) : '');
 
                 fetch(url, { signal: abortController.signal })
                     .then(function (res) {

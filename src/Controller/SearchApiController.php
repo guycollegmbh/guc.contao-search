@@ -36,6 +36,18 @@ class SearchApiController extends AbstractController
         if ($type !== '' && !\in_array($type, $allowedTypes, true)) {
             $type = '';
         }
+
+        // Optional type filter from module config (comma-separated)
+        $typesParam = $request->query->get('types', '');
+        $enabledTypes = [];
+        if ($typesParam !== '') {
+            foreach (explode(',', $typesParam) as $t) {
+                $t = trim($t);
+                if (\in_array($t, $allowedTypes, true)) {
+                    $enabledTypes[] = $t;
+                }
+            }
+        }
         if ($language !== '' && !preg_match('/^[a-z]{2}(-[A-Z]{2})?$/', $language)) {
             $language = '';
         }
@@ -54,7 +66,7 @@ class SearchApiController extends AbstractController
         }
 
         try {
-            $grouped = $this->searchRepository->searchGrouped($query, $language, $perPage);
+            $grouped = $this->searchRepository->searchGrouped($query, $language, $perPage, $enabledTypes);
         } catch (\Throwable $e) {
             return $this->json(['grouped' => [], 'query' => $query, 'error' => 'search_failed']);
         }

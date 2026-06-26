@@ -4,6 +4,16 @@ $GLOBALS['TL_LANG']['MOD']['guc_search'] = ['GUC Suche', 'Suchindex-Verwaltung']
 $GLOBALS['TL_LANG']['FMD']['search'] = ['Suche'];
 $GLOBALS['TL_LANG']['FMD']['guc_search'] = ['Erweiterte Ajax Suche', 'Fügt ein AJAX-Suchfeld mit Volltext-Suche in die Seite ein.'];
 $GLOBALS['TL_LANG']['tl_module']['guc_search_resultsPage'] = ['Weiterleitungsseite', 'Seite mit der vollständigen Suchergebnisansicht.'];
+$GLOBALS['TL_LANG']['tl_module']['guc_search_types'] = ['Zu durchsuchende Typen', 'Welche Inhaltstypen in der Suche erscheinen sollen. Leer = alle Typen.'];
+$GLOBALS['TL_LANG']['tl_module']['guc_search_types_options'] = [
+    'page'   => 'Seiten',
+    'news'   => 'News',
+    'event'  => 'Events',
+    'member' => 'Team-Mitglieder',
+    'faq'    => 'FAQ',
+    'file'   => 'Dateien',
+    'custom' => 'Benutzerdefiniert',
+];
 $GLOBALS['TL_LANG']['tl_module']['guc_search_min_chars'] = ['Mindestzeichen', 'Anzahl der Zeichen ab der die Suche startet (Standard: 2).'];
 $GLOBALS['TL_LANG']['MSC']['guc_search_placeholder'] = 'Suchen…';
 $GLOBALS['TL_LANG']['MSC']['guc_search_no_results'] = 'Keine Ergebnisse gefunden.';
