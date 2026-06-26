@@ -23,13 +23,22 @@
     border-color: #e30613;
 }
 
-.guc-search__clear {
+/* Nativen Browser-Clear-Button von <input type="search"> ausblenden */
+.guc-search__input::-webkit-search-cancel-button {
+    display: none;
+}
+
+.guc-search .guc-search__clear {
+    appearance: none;
+    -webkit-appearance: none;
     background: none;
+    background-color: transparent;
     border: none;
+    color: #999;
     cursor: pointer;
     font-size: 0.925rem;
-    color: #999;
     padding: 4px 8px;
+    line-height: normal;
 }
 
 /* ── Overlay ── */
