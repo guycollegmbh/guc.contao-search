@@ -268,7 +268,7 @@
     width: 20px;
     height: 20px;
     border: 2px solid #e9ecef;
-    border-top-color: #007bff;
+    border-top-color: #e30613;
     border-radius: 50%;
     animation: guc-search-spin 0.6s linear infinite;
 }
