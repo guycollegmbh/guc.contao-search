@@ -5,7 +5,8 @@
      data-api-url="{{ apiUrl }}"
      data-min-chars="{{ minChars }}"
      data-debounce="{{ debounce }}"
-     data-lang="{{ language }}">
+     data-lang="{{ language }}"
+     {% if resultsPageUrl %}data-results-url="{{ resultsPageUrl }}"{% endif %}>
     <div class="guc-search__field">
         <input type="search"
                class="guc-search__input"

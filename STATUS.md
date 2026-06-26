@@ -41,6 +41,9 @@ Zuletzt aktualisiert: 2026-06-25
 - [x] Input-Validierung: Länge, Typ-Whitelist, Sprach-Regex
 
 ### Frontend
+- [x] Enter-Taste leitet auf konfigurierte Ergebnisseite weiter (`?q=suchbegriff`)
+- [x] Ergebnisseite füllt Suchfeld aus URL-Parameter `?q=` vor und startet Suche automatisch
+- [x] "Mehr anzeigen"-Links zeigen auf Ergebnisseite (`resultsUrl?q=...&type=...`)
 - [x] Live-Suche mit Debounce (400 ms) und `AbortController`
 - [x] `DOMContentLoaded`-Guard (Script-Placement unabhängig)
 - [x] Lade-Spinner (CSS-Animation) während API-Fetch
@@ -73,9 +76,7 @@ Zuletzt aktualisiert: 2026-06-25
 
 ### Mittel
 
-1. **`guc_search_resultsPage` nicht implementiert**
-   Das DCA-Feld ist definiert, wird aber von `SearchModuleController` nicht ausgewertet.
-   Klicks auf "Mehr anzeigen" verlinken auf `?q=...&type=...` ohne dedizierte Ergebnisseite.
+1. ~~`guc_search_resultsPage` nicht implementiert~~ — **erledigt** (2026-06-26)
 
 ### Niedrig
 

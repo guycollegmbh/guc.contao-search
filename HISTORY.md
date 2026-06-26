@@ -88,6 +88,22 @@ aufgelöst per pid-Traversal bis zur Root-Seite.
 
 ---
 
+## 2026-06-26 — Ergebnisseite + Cron-Job + FAQ-Indexer
+
+### Feature: Ergebnisseite via Modul-Konfiguration
+
+**Implementierung:**
+- `SearchModuleController`: Liest `guc_search_resultsPage` (pageTree-Feld), löst URL via `PageModel::getFrontendUrl()` auf, übergibt als `resultsPageUrl` ans Template
+- Template: `data-results-url` Attribut am Widget-Container (leer wenn nicht konfiguriert)
+- `search.js`:
+  - **Enter-Taste:** Leitet auf `resultsPageUrl?q=suchbegriff` weiter (nur wenn konfiguriert und `minChars` erfüllt)
+  - **Seitenaufruf:** Liest `?q=` aus URL-Parametern → füllt Suchfeld vor und startet Suche automatisch (für Ergebnisseite)
+  - **"Mehr anzeigen":** Zeigt auf `resultsPageUrl?q=...&type=...` statt auf aktuelle Seite
+
+**Konfiguration:** Im Contao Backend unter Modul → GUC Suche → "Ergebnisseite" eine Seite auswählen, die das GUC-Suchmodul enthält.
+
+---
+
 ## 2026-06-26 — Automatischer Cron-Job + FAQ-Indexer
 
 ### Feature: Automatisches tägliches Indexieren

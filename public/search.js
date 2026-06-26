@@ -11,6 +11,7 @@
             const minChars = parseInt(widget.dataset.minChars || '2', 10);
             const debounce = parseInt(widget.dataset.debounce || '400', 10);
             const lang = widget.dataset.lang || '';
+            const resultsUrl = widget.dataset.resultsUrl || '';
 
             let timer = null;
             let currentQuery = '';
@@ -33,7 +34,13 @@
             });
 
             input.addEventListener('keydown', function (e) {
-                if (e.key === 'Escape') {
+                if (e.key === 'Enter') {
+                    var query = input.value.trim();
+                    if (query.length >= minChars && resultsUrl) {
+                        e.preventDefault();
+                        window.location.href = resultsUrl + '?q=' + encodeURIComponent(query);
+                    }
+                } else if (e.key === 'Escape') {
                     hideResults();
                     input.blur();
                 } else if (e.key === 'ArrowDown' && !results.hidden) {
@@ -74,6 +81,14 @@
                     hideResults();
                 }
             });
+
+            // Pre-fill and search if ?q= is in URL (results page)
+            var urlQ = new URLSearchParams(window.location.search).get('q');
+            if (urlQ && urlQ.length >= minChars) {
+                input.value = urlQ;
+                clearBtn.hidden = false;
+                doSearch(urlQ);
+            }
 
             function doSearch(query) {
                 if (query === currentQuery) return;
@@ -162,7 +177,8 @@
 
                     if (group.hasMore) {
                         var more = document.createElement('a');
-                        more.href = '?q=' + encodeURIComponent(query) + '&type=' + group.type;
+                        var moreBase = resultsUrl || window.location.pathname;
+                        more.href = moreBase + '?q=' + encodeURIComponent(query) + '&type=' + group.type;
                         more.className = 'guc-search__more';
                         more.textContent = 'Mehr anzeigen';
                         groupEl.appendChild(more);

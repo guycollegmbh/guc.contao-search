@@ -21,6 +21,14 @@ class SearchModuleController extends AbstractFrontendModuleController
 
         $minChars = max(1, (int) ($model->guc_search_min_chars ?: 2));
 
+        $resultsPageUrl = '';
+        if ($model->guc_search_resultsPage) {
+            $resultsPage = \Contao\PageModel::findById((int) $model->guc_search_resultsPage);
+            if ($resultsPage !== null) {
+                $resultsPageUrl = $resultsPage->getFrontendUrl();
+            }
+        }
+
         $GLOBALS['TL_CSS'][]        = 'bundles/gucsearch/search.css|static';
         $GLOBALS['TL_JAVASCRIPT'][] = 'bundles/gucsearch/search.js';
 
@@ -29,6 +37,7 @@ class SearchModuleController extends AbstractFrontendModuleController
         $template->set('minChars', $minChars);
         $template->set('debounce', 400);
         $template->set('placeholder', $GLOBALS['TL_LANG']['MSC']['guc_search_placeholder'] ?? 'Suchen…');
+        $template->set('resultsPageUrl', $resultsPageUrl);
 
         return $template->getResponse();
     }
