@@ -8,7 +8,4 @@ $GLOBALS['BE_MOD']['erweiterte_suche'] = [
     'guc_search_categories' => [
         'tables' => ['tl_guc_category'],
     ],
-    'guc_search_config' => [
-        'tables' => ['tl_search_config'],
-    ],
 ];

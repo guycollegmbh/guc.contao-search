@@ -2,7 +2,6 @@
 
 $GLOBALS['TL_LANG']['MOD']['erweiterte_suche']      = 'Erweiterte Suche';
 $GLOBALS['TL_LANG']['MOD']['guc_search_categories'] = ['Kategorien', 'Suchkategorien verwalten'];
-$GLOBALS['TL_LANG']['MOD']['guc_search_config']     = ['Tabellen-Konfiguration', 'Konfigurierbare Inhaltsquellen für den Suchindex'];
 $GLOBALS['TL_LANG']['MOD']['guc_search']            = ['GUC Suche', 'Suchindex-Verwaltung'];
 $GLOBALS['TL_LANG']['FMD']['search'] = ['Suche'];
 $GLOBALS['TL_LANG']['FMD']['guc_search'] = ['Erweiterte Ajax Suche', 'Fügt ein AJAX-Suchfeld mit Volltext-Suche in die Seite ein.'];
