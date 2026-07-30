@@ -34,12 +34,13 @@ class SearchApiController extends AbstractController
         }
 
         // Load active categories from tl_guc_category for dynamic type resolution
-        $categoryAliases = [];
-        $categoryLabels  = [];
-        $categoryColors  = [];
+        $categoryAliases   = [];
+        $categoryLabels    = [];
+        $categoryColors    = [];
+        $categoryLightText = [];
         try {
             $categoryRows = $this->db->fetchAllAssociative(
-                "SELECT alias, title, color FROM tl_guc_category WHERE active = '1' ORDER BY title"
+                "SELECT alias, title, color, lightText FROM tl_guc_category WHERE active = '1' ORDER BY title"
             );
             foreach ($categoryRows as $row) {
                 $categoryAliases[]             = $row['alias'];
@@ -47,6 +48,9 @@ class SearchApiController extends AbstractController
                 $color = ltrim((string) $row['color'], '#');
                 if ($color !== '') {
                     $categoryColors[$row['alias']] = '#' . $color;
+                }
+                if ($row['lightText'] === '1') {
+                    $categoryLightText[$row['alias']] = true;
                 }
             }
         } catch (\Throwable) {
@@ -132,6 +136,9 @@ class SearchApiController extends AbstractController
             ];
             if (isset($categoryColors[$groupType])) {
                 $entry['color'] = $categoryColors[$groupType];
+            }
+            if ($categoryLightText[$groupType] ?? false) {
+                $entry['lightText'] = true;
             }
             $response['grouped'][] = $entry;
         }

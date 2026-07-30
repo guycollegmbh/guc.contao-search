@@ -149,6 +149,9 @@
                     if (group.color) {
                         badge.style.backgroundColor = group.color;
                     }
+                    if (group.lightText) {
+                        badge.style.color = '#ffffff';
+                    }
                     tab.appendChild(badge);
 
                     var cnt = document.createElement('span');

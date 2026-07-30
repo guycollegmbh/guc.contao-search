@@ -49,7 +49,7 @@ $GLOBALS['TL_DCA']['tl_guc_category'] = [
         ],
     ],
     'palettes' => [
-        'default' => '{title_legend},title,alias,color;{active_legend},active',
+        'default' => '{title_legend},title,alias,color,lightText;{active_legend},active',
     ],
     'fields' => [
         'id'     => ['sql' => ['type' => 'integer', 'unsigned' => true, 'autoincrement' => true]],
@@ -87,6 +87,13 @@ $GLOBALS['TL_DCA']['tl_guc_category'] = [
             'inputType' => 'text',
             'eval'      => ['maxlength' => 7, 'colorpicker' => true, 'isHexColor' => true, 'decodeEntities' => true, 'tl_class' => 'w50 wizard'],
             'sql'       => ['type' => 'string', 'length' => 7, 'default' => ''],
+        ],
+        'lightText' => [
+            'label'     => &$GLOBALS['TL_LANG']['tl_guc_category']['lightText'],
+            'exclude'   => true,
+            'inputType' => 'checkbox',
+            'eval'      => ['tl_class' => 'w50 m12'],
+            'sql'       => ['type' => 'string', 'length' => 1, 'fixed' => true, 'default' => ''],
         ],
         'active' => [
             'label'     => &$GLOBALS['TL_LANG']['tl_guc_category']['active'],
