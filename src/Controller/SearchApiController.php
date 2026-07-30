@@ -36,13 +36,17 @@ class SearchApiController extends AbstractController
         // Load active categories from tl_guc_category for dynamic type resolution
         $categoryAliases = [];
         $categoryLabels  = [];
+        $categoryColors  = [];
         try {
             $categoryRows = $this->db->fetchAllAssociative(
-                "SELECT alias, title FROM tl_guc_category WHERE active = '1' ORDER BY title"
+                "SELECT alias, title, color FROM tl_guc_category WHERE active = '1' ORDER BY title"
             );
             foreach ($categoryRows as $row) {
-                $categoryAliases[]                 = $row['alias'];
-                $categoryLabels[$row['alias']]     = $row['title'];
+                $categoryAliases[]             = $row['alias'];
+                $categoryLabels[$row['alias']] = $row['title'];
+                if ($row['color'] !== '') {
+                    $categoryColors[$row['alias']] = $row['color'];
+                }
             }
         } catch (\Throwable) {
             // tl_guc_category not yet migrated — proceed without custom categories
@@ -118,13 +122,17 @@ class SearchApiController extends AbstractController
 
         foreach ($grouped as $groupType => $results) {
             $total = $counts[$groupType] ?? count($results);
-            $response['grouped'][] = [
+            $entry = [
                 'type'    => $groupType,
                 'label'   => $badgeLabels[$groupType] ?? $groupType,
                 'results' => array_map($this->formatResult(...), $results),
                 'total'   => $total,
                 'hasMore' => $total > $perPage,
             ];
+            if (isset($categoryColors[$groupType])) {
+                $entry['color'] = $categoryColors[$groupType];
+            }
+            $response['grouped'][] = $entry;
         }
 
         $jsonResponse = $this->json($response);
