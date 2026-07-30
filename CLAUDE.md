@@ -41,6 +41,26 @@ Services werden mit Tag `guc.search.indexer` registriert.
 | `NewsIndexer` | `news` | `tl_news` + `tl_news_archive` |
 | `EventIndexer` | `event` | `tl_calendar_events` + `tl_calendar` |
 | `FileIndexer` | `file` | `tl_files` (pdf, doc, docx, xls, xlsx, ppt, pptx) |
+| `MemberIndexer` | `member` | `tl_member` — alle aktiven Mitglieder, URL via `findMemberPage()` |
+| `FaqIndexer` | `faq` | `tl_faq` + `tl_faq_category` |
+
+#### Transaktionssicherheit
+
+Jeder Indexer wrapet `clear + inserts + setMeta` in einer SQLite-Transaktion
+(`beginTransaction / commit / rollback`). Ein PHP-Absturz während des Indexierens
+hinterlässt keinen leeren Index — die vorherigen Daten bleiben bis zum erfolgreichen
+`commit` erhalten.
+
+#### Zirkelschutz in rekursiven Closures
+
+Alle `resolveLanguage`- und `resolveSuffix`-Closures verwenden einen `null`-Sentinel
+im Memoization-Array (`array_key_exists` statt `isset`). Zirkuläre `pid`-Verweise in
+`tl_page` terminieren mit `''` statt Stack-Overflow.
+
+#### Zeitvergleiche
+
+`NewsIndexer`, `EventIndexer` und `MemberIndexer` verwenden PHP `time()` als
+DBAL-Parameter (`:now`) statt MySQL-spezifischem `UNIX_TIMESTAMP()`.
 
 #### PageIndexer — Kategorie-Logik
 
@@ -53,6 +73,12 @@ Für jede indexierte Seite wird geprüft, ob deren Artikel (`tl_article`) Katego
 
 Beim Re-Indexieren werden alle bisherigen Seiteneinträge via `clearByIdPrefix('page_')`
 gelöscht — unabhängig davon, unter welchem Typ sie gespeichert waren.
+
+#### MemberIndexer — URL-Verhalten
+
+Alle Mitglieder-Suchergebnisse verlinken auf die Team-Listenseite (via `findMemberPage()`).
+Tiefere Verlinkung auf individuelle Mitglieder würde eine installationsspezifische
+URL-Konfiguration erfordern und ist bewusst nicht implementiert.
 
 ### Manuelle Kategorien (`tl_guc_category`)
 
@@ -86,22 +112,37 @@ Wichtige Methoden:
 
 | Methode | Zweck |
 |---|---|
+| `beginTransaction()` / `commit()` / `rollback()` | Transaktionssteuerung für Indexer |
 | `clearType(string $type)` | Alle Einträge eines Typs löschen |
-| `clearByIdPrefix(string $prefix)` | Alle Einträge löschen, deren `id` mit Präfix beginnt — zwei-stufig: rowid SELECT → DELETE (GLOB auf FTS5 DELETE ist unzuverlässig) |
+| `clearByIdPrefix(string $prefix)` | Batch-DELETE via `rowid IN (...)` — zwei-stufig: SELECT rowids per GLOB, dann ein DELETE. GLOB auf FTS5-UNINDEXED in DELETE ist unzuverlässig. |
 | `searchGrouped(...)` | Gruppierte Suche — Fallback: `getDistinctTypes()` aus dem Index |
+
+### Event Listener (`src/EventListener/SearchIndexListener.php`)
+
+Triggert automatische Neuindexierung bei Backend-Änderungen:
+
+| Tabelle | Indexer |
+|---|---|
+| `tl_page`, `tl_article`, `tl_guc_category` | `PageIndexer` |
+| `tl_news` | `NewsIndexer` |
+| `tl_calendar_events` | `EventIndexer` |
+| `tl_files` | `FileIndexer` |
+| `tl_member` | `MemberIndexer` |
+| `tl_content` | Je nach `ptable`: Page-, News- oder EventIndexer |
 
 ### Controller
 
 | Klasse | Route | Zweck |
 |---|---|---|
 | `SearchApiController` | `GET /api/search` | JSON-API, Query-Params: `q`, `lang`, `type`, `page`, `types` |
-| `SearchIndexController` | `GET/POST /contao/guc-search` | Backend-Verwaltung (ADMIN) |
-| `SearchModuleController` | Fragment | Contao Frontend-Modul (`guc_search`) |
+| `SearchIndexController` | `GET/POST /contao/guc-search` | Backend-Verwaltung (ADMIN), erreichbar über BE-Menü |
+| `SearchModuleController` | Fragment | Contao Frontend-Modul (`guc_search`), nutzt Doctrine DBAL |
 
 `SearchApiController` lädt aktive Kategorien aus `tl_guc_category` (via Doctrine DBAL),
 um `allowedTypes`, `badgeLabels`, `categoryColors` und `categoryLightText` dynamisch zu befüllen.
-Kategorie-Aliases werden den fixen Typen (`page`, `file`, `news`, `event`, `member`, `faq`)
-vorangestellt, damit sie in der gruppierten Antwort zuerst erscheinen.
+Kategorie-Aliases werden den fixen Typen vorangestellt, damit sie zuerst erscheinen.
+Exceptions aus Indexern werden im `SearchIndexController` gefangen und als Fehlermeldung
+im Backend-Template angezeigt (kein 500-Fehler).
 
 ### API-Response-Format
 
@@ -113,8 +154,8 @@ Ohne `type`-Filter (gruppiert):
       "type": "team",
       "label": "Team",
       "results": [...],
-      "total": 5,
-      "hasMore": false,
+      "total": 15,
+      "hasMore": true,
       "color": "#e30613",
       "lightText": true
     }
@@ -123,8 +164,9 @@ Ohne `type`-Filter (gruppiert):
 }
 ```
 
-- `color` — nur vorhanden, wenn in `tl_guc_category.color` ein Wert gesetzt ist (mit `#`-Prefix normalisiert)
-- `lightText` — nur vorhanden (und `true`), wenn `tl_guc_category.lightText = '1'`
+- `color` — nur vorhanden wenn `tl_guc_category.color` gesetzt ist (mit `#`-Prefix normalisiert)
+- `lightText` — nur vorhanden (und `true`) wenn `tl_guc_category.lightText = '1'`
+- `hasMore` — `true` wenn mehr als 10 Treffer existieren; JS rendert dann einen "Alle N Ergebnisse anzeigen →"-Link
 
 Mit `type`-Filter (paginiert):
 ```json
@@ -140,51 +182,63 @@ Konfiguration über `data-*`-Attribute des `.guc-search`-Containers:
 **Badge-Farben:**
 - Fixe Typen (`page`, `file`, `news`, `event`, `member`, `faq`) haben je eine CSS-Klasse
   `.guc-search__badge--{type}` mit hartcodierten Farben.
-- Manuelle Kategorien erhalten ihre Farbe via Inline-Style aus der API-Response
-  (`badge.style.backgroundColor = group.color`). Inline-Style überschreibt die CSS-Klasse.
+- Manuelle Kategorien erhalten ihre Farbe via Inline-Style (`badge.style.backgroundColor = group.color`).
+  Inline-Style überschreibt die CSS-Klasse.
 - Wenn `group.lightText === true`, wird zusätzlich `badge.style.color = '#ffffff'` gesetzt.
 - Ohne gesetzten Farbwert greift die Basisklasse `.guc-search__badge` (Standard-Grau).
 
+**"Mehr anzeigen"-Link:**
+- Wenn `group.hasMore === true` und eine `resultsUrl` am Widget gesetzt ist, wird
+  am Ende der Ergebnisliste ein `.guc-search__more`-Link gerendert.
+- Link navigiert zu `resultsUrl?keywords=...&type=...` (direkt gefilterte Ergebnisseite).
+- Keyboard-Navigation (`ArrowDown`/`ArrowUp`) schließt den Link ein.
+
+**Barrierefreiheit (ARIA):**
+- Tab-Buttons haben eindeutige `id="guc-tab-{type}"`
+- Tab-Panels haben `aria-labelledby="guc-tab-{type}"` und `tabindex="0"`
+- Keyboard-Navigation berücksichtigt `.guc-search__link` und `.guc-search__more`
+
 **Typ-Auswahl im Frontend-Modul:**
-- Im Modul-Backend wird die Checkbox `_categories` für "Manuelle Kategorien (alle aktiven)" angeboten.
-- `SearchModuleController` ersetzt `_categories` zur Laufzeit durch alle aktiven Kategorie-Aliases aus der DB.
-- Fixe Typen werden direkt als Checkboxen konfiguriert.
+- `_categories`-Platzhalter im Modul-Backend wird zur Laufzeit durch alle aktiven Aliases ersetzt.
+- `SearchModuleController` nutzt Doctrine DBAL (nicht mehr Legacy `Contao\Database`).
 - Neue Kategorien erscheinen automatisch ohne Modul-Neukonfiguration.
 
 ## Datei-Struktur
 
 ```
 src/
-  Command/BuildSearchIndexCommand.php   CLI-Befehl
-  ContaoManager/Plugin.php              Contao-Manager-Plugin (Routing + Bundles)
+  Command/BuildSearchIndexCommand.php       CLI-Befehl
+  ContaoManager/Plugin.php                  Contao-Manager-Plugin (Routing + Bundles)
   Controller/
     Backend/SearchIndexController.php
     FrontendModule/SearchModuleController.php
     SearchApiController.php
   DependencyInjection/GucSearchExtension.php
-  EventListener/SearchIndexListener.php  Re-Index-Callbacks für tl_guc_category
+  EventListener/SearchIndexListener.php     Re-Index-Callbacks für alle relevanten Tabellen
   GucSearchBundle.php
   Indexer/
     EventIndexer.php
+    FaqIndexer.php
     FileIndexer.php
     IndexerInterface.php
+    MemberIndexer.php
     NewsIndexer.php
     PageIndexer.php
   Repository/SearchRepository.php
 
 contao/
-  config/config.php                     BE_MOD-Registrierung "Erweiterte Suche"
-  dca/tl_article.php                    Erweiterung: Feld guc_categories (checkboxWizard)
-  dca/tl_guc_category.php              DCA für Kategorieverwaltung
-  dca/tl_module.php                     Felder: guc_search_min_chars, guc_search_types, guc_search_resultsPage
+  config/config.php                         BE_MOD: guc_search_index (Route) + guc_search_categories (DCA)
+  dca/tl_article.php                        Erweiterung: Feld guc_categories (checkboxWizard)
+  dca/tl_guc_category.php                  DCA für Kategorieverwaltung
+  dca/tl_module.php                         Felder: guc_search_min_chars, guc_search_types, guc_search_resultsPage
   languages/de/ + en/
-    default.php                         MOD-Labels inkl. "Erweiterte Suche"
-    tl_article.php                      Labels für guc_categories-Feld
-    tl_guc_category.php                 Labels für Kategorie-DCA
+    default.php                             MOD-Labels inkl. "Erweiterte Suche"
+    tl_article.php                          Labels für guc_categories-Feld
+    tl_guc_category.php                     Labels für Kategorie-DCA (title, alias, color, lightText, active)
 
 templates/
-  backend/search_index.html.twig        Backend-Verwaltung
-  frontend_module/guc_search.html.twig  Frontend-Modul (Fragment-Template)
+  backend/search_index.html.twig            Backend-Verwaltung
+  frontend_module/guc_search.html.twig      Frontend-Modul (Fragment-Template)
 
 public/
   search.js
@@ -195,9 +249,13 @@ public/
 
 Das Backend-Modul wird unter einer eigenen Gruppe "Erweiterte Suche" angezeigt:
 
-| Modul | Tabelle | Zweck |
+| Modul | Route / Tabelle | Zweck |
 |---|---|---|
 | Kategorien | `tl_guc_category` | Manuelle Suchkategorien anlegen/bearbeiten |
+
+Der **Suchindex-Controller** (`SearchIndexController`) ist über die direkte URL
+`/contao/guc-search` erreichbar (erfordert ROLE_ADMIN). Der `route`-Key im `BE_MOD`-Array
+wird von Contao 5 nicht korrekt gerendert und wurde deshalb nicht verwendet.
 
 Nach dem Anlegen/Ändern von Kategorien muss der Suchindex neu aufgebaut werden:
 ```bash
@@ -246,9 +304,12 @@ framework:
 ```
 Dann im `SearchApiController` via `RateLimiterFactory $gucSearchApiLimiter` einbinden.
 
-## Bekannte Probleme / TODOs
+## Bekannte Einschränkungen
 
-Siehe `STATUS.md` für den aktuellen Entwicklungsstand.
+- **MemberIndexer URL:** Alle Mitglieder-Suchergebnisse verlinken auf die Team-Listenseite.
+  Individuelle Mitglieder-URLs würden eine installationsspezifische Konfiguration erfordern.
+- **`hasMore`-Link** erscheint nur wenn `data-results-url` am Widget gesetzt ist.
+  Ohne diese URL wird der Link nicht gerendert (kein "blinder" Link auf `#`).
 
 ## Twig-Namespace
 
