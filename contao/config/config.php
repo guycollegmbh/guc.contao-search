@@ -5,6 +5,9 @@
 
 // Backend module group "Erweiterte Suche"
 $GLOBALS['BE_MOD']['erweiterte_suche'] = [
+    'guc_search_index' => [
+        'callback' => Guc\SearchBundle\Backend\SearchIndexModule::class,
+    ],
     'guc_search_categories' => [
         'tables' => ['tl_guc_category'],
     ],

@@ -1,6 +1,7 @@
 <?php
 
 $GLOBALS['TL_LANG']['MOD']['erweiterte_suche']      = 'Extended Search';
+$GLOBALS['TL_LANG']['MOD']['guc_search_index']      = ['Search index', 'Index status and manual re-indexing'];
 $GLOBALS['TL_LANG']['MOD']['guc_search_categories'] = ['Categories', 'Manage search categories'];
 $GLOBALS['TL_LANG']['MOD']['guc_search']            = ['GUC Search', 'Search index management'];
 $GLOBALS['TL_LANG']['FMD']['guc_search'] = ['Extended Ajax Search', 'Adds an AJAX full-text search field to the page.'];

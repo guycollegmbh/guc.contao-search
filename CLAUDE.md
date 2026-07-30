@@ -132,17 +132,20 @@ Triggert automatische Neuindexierung bei Backend-Änderungen:
 
 ### Controller
 
-| Klasse | Route | Zweck |
-|---|---|---|
-| `SearchApiController` | `GET /api/search` | JSON-API, Query-Params: `q`, `lang`, `type`, `page`, `types` |
-| `SearchIndexController` | `GET/POST /contao/guc-search` | Backend-Verwaltung (ADMIN), erreichbar über BE-Menü |
-| `SearchModuleController` | Fragment | Contao Frontend-Modul (`guc_search`), nutzt Doctrine DBAL |
+| Klasse | Route / Zweck |
+|---|---|
+| `SearchApiController` | `GET /api/search` — JSON-API, Query-Params: `q`, `lang`, `type`, `page`, `types` |
+| `SearchModuleController` | Fragment — Contao Frontend-Modul (`guc_search`), nutzt Doctrine DBAL |
+| `Backend\SearchIndexModule` | BE_MOD-Callback — Index-Status und Neuindexierung im Backend |
 
 `SearchApiController` lädt aktive Kategorien aus `tl_guc_category` (via Doctrine DBAL),
 um `allowedTypes`, `badgeLabels`, `categoryColors` und `categoryLightText` dynamisch zu befüllen.
 Kategorie-Aliases werden den fixen Typen vorangestellt, damit sie zuerst erscheinen.
-Exceptions aus Indexern werden im `SearchIndexController` gefangen und als Fehlermeldung
-im Backend-Template angezeigt (kein 500-Fehler).
+
+`Backend\SearchIndexModule` ist kein Symfony-Controller, sondern eine Contao-BE_MOD-Callback-Klasse.
+Contao instanziiert sie via `System::importStatic()` (DI-fähig in Contao 5) und ruft `generate()` auf.
+Das zurückgegebene HTML wird von Contao's `BackendController` in das vollständige Backend-Layout eingebettet.
+Das Template (`search_index.html.twig`) enthält daher kein `extends` mehr.
 
 ### API-Response-Format
 
@@ -209,8 +212,9 @@ Konfiguration über `data-*`-Attribute des `.guc-search`-Containers:
 src/
   Command/BuildSearchIndexCommand.php       CLI-Befehl
   ContaoManager/Plugin.php                  Contao-Manager-Plugin (Routing + Bundles)
+  Backend/
+    SearchIndexModule.php                 BE_MOD-Callback (kein Symfony-Controller)
   Controller/
-    Backend/SearchIndexController.php
     FrontendModule/SearchModuleController.php
     SearchApiController.php
   DependencyInjection/GucSearchExtension.php
@@ -249,13 +253,10 @@ public/
 
 Das Backend-Modul wird unter einer eigenen Gruppe "Erweiterte Suche" angezeigt:
 
-| Modul | Route / Tabelle | Zweck |
+| Modul | Tabelle / Callback | Zweck |
 |---|---|---|
+| Suchindex | `SearchIndexModule::generate()` | Index-Status, manuelle Neuindexierung |
 | Kategorien | `tl_guc_category` | Manuelle Suchkategorien anlegen/bearbeiten |
-
-Der **Suchindex-Controller** (`SearchIndexController`) ist über die direkte URL
-`/contao/guc-search` erreichbar (erfordert ROLE_ADMIN). Der `route`-Key im `BE_MOD`-Array
-wird von Contao 5 nicht korrekt gerendert und wurde deshalb nicht verwendet.
 
 Nach dem Anlegen/Ändern von Kategorien muss der Suchindex neu aufgebaut werden:
 ```bash

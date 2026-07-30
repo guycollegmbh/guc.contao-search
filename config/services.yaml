@@ -46,8 +46,7 @@ services:
         public: true
         tags: ['controller.service_arguments']
 
-    Guc\SearchBundle\Controller\Backend\SearchIndexController:
+    Guc\SearchBundle\Backend\SearchIndexModule:
         public: true
-        tags: ['controller.service_arguments']
         arguments:
             $indexers: !tagged_iterator guc.search.indexer
