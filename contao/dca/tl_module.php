@@ -15,25 +15,17 @@ $GLOBALS['TL_DCA']['tl_module']['fields']['guc_search_types'] = [
     'label'            => &$GLOBALS['TL_LANG']['tl_module']['guc_search_types'],
     'exclude'          => true,
     'inputType'        => 'checkbox',
-    // Options loaded dynamically: fixed types + active custom categories from tl_guc_category
+    // _categories is a placeholder — SearchModuleController expands it to all active category aliases at render time
     'options_callback' => static function (): array {
-        $options = [
-            'news'   => $GLOBALS['TL_LANG']['tl_module']['guc_search_types_options']['news']   ?? 'News',
-            'event'  => $GLOBALS['TL_LANG']['tl_module']['guc_search_types_options']['event']  ?? 'Events',
-            'member' => $GLOBALS['TL_LANG']['tl_module']['guc_search_types_options']['member'] ?? 'Team',
-            'faq'    => $GLOBALS['TL_LANG']['tl_module']['guc_search_types_options']['faq']    ?? 'FAQ',
-            'file'   => $GLOBALS['TL_LANG']['tl_module']['guc_search_types_options']['file']   ?? 'Dateien',
-            'page'   => $GLOBALS['TL_LANG']['tl_module']['guc_search_types_options']['page']   ?? 'Seiten (ohne Kategorie)',
+        return [
+            '_categories' => $GLOBALS['TL_LANG']['tl_module']['guc_search_types_options']['_categories'] ?? 'Manuelle Kategorien',
+            'news'        => $GLOBALS['TL_LANG']['tl_module']['guc_search_types_options']['news']         ?? 'News',
+            'event'       => $GLOBALS['TL_LANG']['tl_module']['guc_search_types_options']['event']        ?? 'Events',
+            'member'      => $GLOBALS['TL_LANG']['tl_module']['guc_search_types_options']['member']       ?? 'Team',
+            'faq'         => $GLOBALS['TL_LANG']['tl_module']['guc_search_types_options']['faq']          ?? 'FAQ',
+            'file'        => $GLOBALS['TL_LANG']['tl_module']['guc_search_types_options']['file']         ?? 'Dateien',
+            'page'        => $GLOBALS['TL_LANG']['tl_module']['guc_search_types_options']['page']         ?? 'Seiten',
         ];
-        try {
-            $result = \Contao\Database::getInstance()->execute(
-                "SELECT alias, title FROM tl_guc_category WHERE active='1' ORDER BY title"
-            );
-            while ($result->next()) {
-                $options[$result->alias] = $result->title;
-            }
-        } catch (\Throwable) {}
-        return $options;
     },
     'eval'             => ['multiple' => true, 'tl_class' => 'clr'],
     'sql'              => ['type' => 'blob', 'notnull' => false],
