@@ -146,6 +146,9 @@
                     var badge = document.createElement('span');
                     badge.className = 'guc-search__badge guc-search__badge--' + group.type;
                     badge.textContent = group.label;
+                    if (group.color) {
+                        badge.style.backgroundColor = group.color;
+                    }
                     tab.appendChild(badge);
 
                     var cnt = document.createElement('span');

@@ -44,8 +44,9 @@ class SearchApiController extends AbstractController
             foreach ($categoryRows as $row) {
                 $categoryAliases[]             = $row['alias'];
                 $categoryLabels[$row['alias']] = $row['title'];
-                if ($row['color'] !== '') {
-                    $categoryColors[$row['alias']] = $row['color'];
+                $color = ltrim((string) $row['color'], '#');
+                if ($color !== '') {
+                    $categoryColors[$row['alias']] = '#' . $color;
                 }
             }
         } catch (\Throwable) {
