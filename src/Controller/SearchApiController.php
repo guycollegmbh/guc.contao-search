@@ -49,7 +49,7 @@ class SearchApiController extends AbstractController
         }
 
         // Fixed types + active category aliases
-        $fixedTypes   = ['page', 'file', 'news', 'event', 'member', 'faq', 'custom'];
+        $fixedTypes   = ['page', 'file', 'news', 'event', 'member', 'faq'];
         $allowedTypes = array_merge($fixedTypes, $categoryAliases);
 
         $badgeLabels = array_merge([
@@ -59,7 +59,6 @@ class SearchApiController extends AbstractController
             'event'  => 'Events',
             'member' => 'Team',
             'faq'    => 'FAQ',
-            'custom' => 'Inhalt',
         ], $categoryLabels);
 
         // Validate type parameter against dynamic whitelist

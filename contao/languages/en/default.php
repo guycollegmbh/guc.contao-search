@@ -17,5 +17,4 @@ $GLOBALS['TL_LANG']['tl_module']['guc_search_types_options'] = [
     'member' => 'Team members',
     'faq'    => 'FAQ',
     'file'   => 'Files',
-    'custom' => 'Custom',
 ];

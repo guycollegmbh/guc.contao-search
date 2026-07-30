@@ -14,7 +14,6 @@ $GLOBALS['TL_LANG']['tl_module']['guc_search_types_options'] = [
     'member' => 'Team-Mitglieder',
     'faq'    => 'FAQ',
     'file'   => 'Dateien',
-    'custom' => 'Benutzerdefiniert',
 ];
 $GLOBALS['TL_LANG']['tl_module']['guc_search_min_chars'] = ['Mindestzeichen', 'Anzahl der Zeichen ab der die Suche startet (Standard: 2).'];
 $GLOBALS['TL_LANG']['MSC']['guc_search_placeholder'] = 'Suchen…';
