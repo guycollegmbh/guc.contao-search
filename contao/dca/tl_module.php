@@ -22,8 +22,8 @@ $GLOBALS['TL_DCA']['tl_module']['fields']['guc_search_types'] = [
             'news'        => $GLOBALS['TL_LANG']['tl_module']['guc_search_types_options']['news']         ?? 'News',
             'event'       => $GLOBALS['TL_LANG']['tl_module']['guc_search_types_options']['event']        ?? 'Events',
             'member'      => $GLOBALS['TL_LANG']['tl_module']['guc_search_types_options']['member']       ?? 'Team',
-            'file'        => $GLOBALS['TL_LANG']['tl_module']['guc_search_types_options']['file']         ?? 'Dateien',
             'faq'         => $GLOBALS['TL_LANG']['tl_module']['guc_search_types_options']['faq']          ?? 'FAQ',
+            'file'        => $GLOBALS['TL_LANG']['tl_module']['guc_search_types_options']['file']         ?? 'Dateien',
             '_categories' => $GLOBALS['TL_LANG']['tl_module']['guc_search_types_options']['_categories'] ?? 'Manuelle Kategorien',
         ];
     },
