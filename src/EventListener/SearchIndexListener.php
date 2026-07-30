@@ -6,7 +6,6 @@ namespace Guc\SearchBundle\EventListener;
 
 use Contao\CoreBundle\DependencyInjection\Attribute\AsCallback;
 use Contao\DataContainer;
-use Guc\SearchBundle\Indexer\CustomTableIndexer;
 use Guc\SearchBundle\Indexer\EventIndexer;
 use Guc\SearchBundle\Indexer\FileIndexer;
 use Guc\SearchBundle\Indexer\NewsIndexer;
@@ -19,7 +18,6 @@ class SearchIndexListener
         private readonly NewsIndexer $newsIndexer,
         private readonly EventIndexer $eventIndexer,
         private readonly FileIndexer $fileIndexer,
-        private readonly CustomTableIndexer $customIndexer,
     ) {}
 
     // --- News ---
@@ -100,19 +98,5 @@ class SearchIndexListener
     public function onFilesDelete(DataContainer $dc, int $undoId): void
     {
         $this->fileIndexer->index();
-    }
-
-    // --- Custom-Tabellen-Konfiguration ---
-
-    #[AsCallback(table: 'tl_search_config', target: 'config.onsubmit')]
-    public function onSearchConfigSubmit(DataContainer $dc): void
-    {
-        $this->customIndexer->index();
-    }
-
-    #[AsCallback(table: 'tl_search_config', target: 'config.ondelete')]
-    public function onSearchConfigDelete(DataContainer $dc, int $undoId): void
-    {
-        $this->customIndexer->index();
     }
 }
