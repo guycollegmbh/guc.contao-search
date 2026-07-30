@@ -34,17 +34,53 @@ Services werden mit Tag `guc.search.indexer` registriert.
 
 | Klasse | Typ | Quelle |
 |---|---|---|
-| `PageIndexer` | `page` | `tl_page` + `tl_search` (Contao-eigener Index) |
+| `PageIndexer` | `page` / Kategorie-Alias | `tl_page` + `tl_search` + `tl_article.guc_categories` |
 | `NewsIndexer` | `news` | `tl_news` + `tl_news_archive` |
 | `EventIndexer` | `event` | `tl_calendar_events` + `tl_calendar` |
 | `FileIndexer` | `file` | `tl_files` (pdf, doc, docx, xls, xlsx, ppt, pptx) |
 | `CustomTableIndexer` | `custom` | Konfigurierbar via `tl_search_config` (Backend) |
+
+#### PageIndexer — Kategorie-Logik
+
+Für jede indexierte Seite wird geprüft, ob deren Artikel (`tl_article`) Kategorien in
+`guc_categories` haben:
+
+- **Kategorien vorhanden:** Pro Kategorie ein separater FTS-Eintrag mit
+  `type = category_alias`, `badge = category_title`, `id = page_{id}_cat_{catId}`.
+- **Keine Kategorien:** Fallback auf `type = 'page'`, `badge = 'Seite'`, `id = page_{id}`.
+
+Beim Re-Indexieren werden alle bisherigen Seiteneinträge via `clearByIdPrefix('page_')`
+gelöscht — unabhängig davon, unter welchem Typ sie gespeichert waren.
+
+### Manuelle Kategorien (`tl_guc_category`)
+
+Im Backend unter **"Erweiterte Suche → Kategorien"** können Kategorien verwaltet werden.
+
+| Feld | Bedeutung |
+|---|---|
+| `title` | Anzeigename im Suchoverlay (z.B. «Team») |
+| `alias` | Technischer Schlüssel im FTS-Index (z.B. `team`), eindeutig, auto-generiert |
+| `active` | Nur aktive Kategorien erscheinen in der Suche |
+
+**Zuweisung zu Artikeln:** Im Contao-Artikel-Editor erscheint unter der Legende
+"Erweiterte Suche" ein Checkbox-Widget `guc_categories`.
+Ein Artikel kann beliebig viele Kategorien erhalten. Die Kategorien werden über alle
+Artikel einer Seite hinweg aggregiert — eine Seite erscheint in so vielen Tabs, wie
+einzigartige Kategorien auf ihren Artikeln vergeben sind.
 
 ### Repository (`src/Repository/SearchRepository.php`)
 
 Direkte PDO-Verbindung zu `var/search.db`.
 FTS5-Tabelle: `search_index` mit Feldern `id, type, language, title, body, url, badge, updated`.
 Meta-Tabelle: `search_meta` (key/value, z.B. `last_index_page`).
+
+Wichtige Methoden:
+
+| Methode | Zweck |
+|---|---|
+| `clearType(string $type)` | Alle Einträge eines Typs löschen |
+| `clearByIdPrefix(string $prefix)` | Alle Einträge löschen, deren `id` mit Präfix beginnt (SQLite GLOB) |
+| `searchGrouped(...)` | Gruppierte Suche — Fallback: `getDistinctTypes()` aus dem Index |
 
 ### Controller
 
@@ -54,13 +90,18 @@ Meta-Tabelle: `search_meta` (key/value, z.B. `last_index_page`).
 | `SearchIndexController` | `GET/POST /contao/guc-search` | Backend-Verwaltung (ADMIN) |
 | `SearchModuleController` | Fragment | Contao Frontend-Modul (`guc_search`) |
 
+`SearchApiController` lädt aktive Kategorien aus `tl_guc_category` (via Doctrine DBAL),
+um `allowedTypes` und `badgeLabels` dynamisch zu befüllen. Kategorie-Aliases werden
+dabei den fixen Typen (`page`, `file`, `news`, `event`, `member`, `faq`, `custom`)
+vorangestellt, damit sie in der gruppierten Antwort zuerst erscheinen.
+
 ### API-Response-Format
 
 Ohne `type`-Filter (gruppiert):
 ```json
 {
   "grouped": [
-    { "type": "page", "label": "Seite", "results": [...], "total": 5, "hasMore": false }
+    { "type": "team", "label": "Team", "results": [...], "total": 5, "hasMore": false }
   ],
   "query": "suchbegriff"
 }
@@ -83,7 +124,6 @@ Konfiguration über `data-*`-Attribute des `.guc-search`-Containers:
 src/
   Command/BuildSearchIndexCommand.php   CLI-Befehl
   ContaoManager/Plugin.php              Contao-Manager-Plugin (Routing + Bundles)
-  ContaoManagerPlugin.php               VERALTET — nicht in composer.json referenziert
   Controller/
     Backend/SearchIndexController.php
     FrontendModule/SearchModuleController.php
@@ -97,31 +137,47 @@ src/
     IndexerInterface.php
     NewsIndexer.php
     PageIndexer.php
-  Module/ModuleSearch.php               LEGACY — nicht aktiv genutzt
   Repository/SearchRepository.php
 
 contao/
-  config/config.php                     Leer (FrontendModule via Attribut registriert)
-  config.php                            REDUNDANT — nur Kommentar
+  config/config.php                     BE_MOD-Registrierung "Erweiterte Suche"
+  dca/tl_article.php                    Erweiterung: Feld guc_categories (checkboxWizard)
+  dca/tl_guc_category.php              DCA für Kategorieverwaltung
   dca/tl_module.php                     Felder: guc_search_min_chars, guc_search_resultsPage
   dca/tl_search_config.php              DCA für Custom-Tabellen-Konfiguration
   languages/de/ + en/
+    default.php                         MOD-Labels inkl. "Erweiterte Suche"
+    tl_article.php                      Labels für guc_categories-Feld
+    tl_guc_category.php                 Labels für Kategorie-DCA
 
 templates/
   backend/search_index.html.twig        Backend-Verwaltung
   frontend_module/guc_search.html.twig  Frontend-Modul (Fragment-Template)
-  search_module.html.twig               UNBENUTZT
-  search_results.html.twig              UNBENUTZT
 
 public/
   search.js
   search.css
 ```
 
+## Backend — "Erweiterte Suche"
+
+Das Backend-Modul wird unter einer eigenen Gruppe "Erweiterte Suche" angezeigt:
+
+| Modul | Tabelle | Zweck |
+|---|---|---|
+| Kategorien | `tl_guc_category` | Manuelle Suchkategorien anlegen/bearbeiten |
+| Tabellen-Konfiguration | `tl_search_config` | Custom-Inhaltsquellen konfigurieren |
+
+Nach dem Anlegen/Ändern von Kategorien muss der Suchindex neu aufgebaut werden:
+```bash
+php bin/console guc:search:index --type=page
+```
+
 ## Sicherheit
 
 ### Was das Bundle selbst absichert
-- API-Parameter (`q`, `type`, `lang`) werden validiert und auf Whitelists geprüft
+- API-Parameter (`q`, `type`, `lang`) werden validiert und auf dynamischer Whitelist geprüft
+- `type`-Whitelist = feste Typen + aktive Kategorie-Aliases aus `tl_guc_category`
 - FTS5-Query wird von Sonderzeichen bereinigt (`sanitizeQuery`)
 - API-Response gibt nur explizit erlaubte Felder zurück (`formatResult`)
 - Excerpt erlaubt serverseitig nur `<mark>`-Tags (`strip_tags($excerpt, '<mark>')`)
@@ -165,6 +221,6 @@ Siehe `STATUS.md` für den aktuellen Entwicklungsstand.
 
 ## Custom-Table-Konfiguration (tl_search_config)
 
-Im Backend unter "GUC Suche" können beliebige Tabellen indexiert werden.
-Pflichtfelder: `tableName`, `titleField`, `bodyField`, `urlPattern` (mit `%s`-Platzhalter).
-SQL-Injection-Schutz: Identifier werden via Regex `^\w+$` validiert.
+Im Backend unter "Erweiterte Suche → Tabellen-Konfiguration" können beliebige Tabellen
+indexiert werden. Pflichtfelder: `tableName`, `titleField`, `bodyField`, `urlPattern`
+(mit `%s`-Platzhalter). SQL-Injection-Schutz: Identifier werden via Regex `^\w+$` validiert.

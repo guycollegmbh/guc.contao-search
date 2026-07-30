@@ -23,19 +23,53 @@ class PageIndexer implements IndexerInterface
     {
         $count = 0;
 
+        // Load active categories: id → ['alias' => ..., 'title' => ...]
+        $categoryMap = [];
+        try {
+            $rows = $this->db->fetchAllAssociative(
+                "SELECT id, alias, title FROM tl_guc_category WHERE active = '1'"
+            );
+            foreach ($rows as $row) {
+                $categoryMap[(int) $row['id']] = ['alias' => $row['alias'], 'title' => $row['title']];
+            }
+        } catch (\Throwable) {
+            // tl_guc_category not yet migrated — fall back to generic page type
+        }
+
+        // Aggregate article categories per page: pageId → [catId => true]
+        $pageCategories = [];
+        if (!empty($categoryMap)) {
+            $articleRows = $this->db->fetchAllAssociative(
+                "SELECT pid, guc_categories FROM tl_article
+                 WHERE published = '1' AND guc_categories IS NOT NULL AND guc_categories != ''"
+            );
+            foreach ($articleRows as $row) {
+                $cats = @unserialize((string) $row['guc_categories'], ['allowed_classes' => false]);
+                if (!is_array($cats)) {
+                    continue;
+                }
+                foreach ($cats as $catId) {
+                    $catId = (int) $catId;
+                    if (isset($categoryMap[$catId])) {
+                        $pageCategories[(int) $row['pid']][$catId] = true;
+                    }
+                }
+            }
+        }
+
         // Build pid -> page map and resolve language + urlSuffix by walking up to root
         $allPages = $this->db->fetchAllAssociative("SELECT id, pid, type, language, urlSuffix FROM tl_page");
-        $pageMap = [];
+        $pageMap  = [];
         foreach ($allPages as $p) {
             $pageMap[$p['id']] = $p;
         }
 
         $languageMap = [];
-        $suffixMap = [];
+        $suffixMap   = [];
         foreach ($pageMap as $p) {
             if ($p['type'] === 'root') {
                 $languageMap[$p['id']] = $p['language'];
-                $suffixMap[$p['id']] = $p['urlSuffix'] ?? '';
+                $suffixMap[$p['id']]   = $p['urlSuffix'] ?? '';
             }
         }
 
@@ -46,7 +80,7 @@ class PageIndexer implements IndexerInterface
             if (!isset($pageMap[$id])) {
                 return '';
             }
-            $lang = $resolveLanguage((int) $pageMap[$id]['pid']);
+            $lang            = $resolveLanguage((int) $pageMap[$id]['pid']);
             $languageMap[$id] = $lang;
             return $lang;
         };
@@ -58,8 +92,8 @@ class PageIndexer implements IndexerInterface
             if (!isset($pageMap[$id])) {
                 return '';
             }
-            $suffix = $resolveSuffix((int) $pageMap[$id]['pid']);
-            $suffixMap[$id] = $suffix;
+            $suffix          = $resolveSuffix((int) $pageMap[$id]['pid']);
+            $suffixMap[$id]  = $suffix;
             return $suffix;
         };
 
@@ -97,10 +131,14 @@ class PageIndexer implements IndexerInterface
             $contentByPage[(int) $row['pageId']][] = $row;
         }
 
-        $this->searchRepository->clearType('page');
+        // Clear ALL page-related entries (type may now be a category alias, not just 'page')
+        $this->searchRepository->clearByIdPrefix('page_');
 
         foreach ($pages as $page) {
-            $pageId = (int) $page['id'];
+            $pageId   = (int) $page['id'];
+            $language = $resolveLanguage($pageId);
+            $url      = '/' . ($page['alias'] ?? '') . $resolveSuffix($pageId);
+            $title    = strip_tags($page['title']);
 
             if (isset($searchByPage[$pageId])) {
                 $body = strip_tags($searchByPage[$pageId]);
@@ -117,16 +155,37 @@ class PageIndexer implements IndexerInterface
                 }
             }
 
-            $this->searchRepository->insert([
-                'id'       => 'page_' . $pageId,
-                'type'     => 'page',
-                'language' => $resolveLanguage($pageId),
-                'title'    => strip_tags($page['title']),
-                'body'     => trim($body),
-                'url'      => '/' . ($page['alias'] ?? '') . $resolveSuffix($pageId),
-                'badge'    => 'Seite',
-            ]);
-            $count++;
+            $pageCats = $pageCategories[$pageId] ?? [];
+
+            if (empty($pageCats)) {
+                // No categories assigned — index as generic page
+                $this->searchRepository->insert([
+                    'id'       => 'page_' . $pageId,
+                    'type'     => 'page',
+                    'language' => $language,
+                    'title'    => $title,
+                    'body'     => trim($body),
+                    'url'      => $url,
+                    'badge'    => 'Seite',
+                ]);
+                $count++;
+                continue;
+            }
+
+            // Index once per assigned category
+            foreach (array_keys($pageCats) as $catId) {
+                $cat = $categoryMap[$catId];
+                $this->searchRepository->insert([
+                    'id'       => 'page_' . $pageId . '_cat_' . $catId,
+                    'type'     => $cat['alias'],
+                    'language' => $language,
+                    'title'    => $title,
+                    'body'     => trim($body),
+                    'url'      => $url,
+                    'badge'    => $cat['title'],
+                ]);
+                $count++;
+            }
         }
 
         $this->searchRepository->setMeta('last_index_page', date('Y-m-d H:i:s'));

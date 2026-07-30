@@ -108,7 +108,7 @@ class SearchRepository
     public function searchGrouped(string $query, string $language = '', int $perGroup = 10, array $enabledTypes = []): array
     {
         $types = empty($enabledTypes)
-            ? ['page', 'file', 'event', 'news', 'member', 'faq', 'custom']
+            ? $this->getDistinctTypes()
             : $enabledTypes;
         $groups = [];
 
@@ -234,6 +234,20 @@ class SearchRepository
     {
         $stmt = $this->pdo->prepare("DELETE FROM search_index WHERE type = :type");
         $stmt->execute([':type' => $type]);
+    }
+
+    // Deletes all entries whose id starts with $prefix — used by PageIndexer to clear
+    // all page-related entries regardless of which category type they were indexed under.
+    public function clearByIdPrefix(string $prefix): void
+    {
+        $stmt = $this->pdo->prepare("DELETE FROM search_index WHERE id GLOB :pattern");
+        $stmt->execute([':pattern' => $prefix . '*']);
+    }
+
+    private function getDistinctTypes(): array
+    {
+        $stmt = $this->pdo->query("SELECT DISTINCT type FROM search_index ORDER BY type");
+        return $stmt->fetchAll(\PDO::FETCH_COLUMN);
     }
 
     public function clearAll(): void
