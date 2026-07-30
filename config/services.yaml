@@ -11,6 +11,7 @@ services:
             - '../src/GucSearchBundle.php'
 
     Guc\SearchBundle\Repository\SearchRepository:
+        public: true
         arguments:
             $projectDir: '%kernel.project_dir%'
 
@@ -32,6 +33,11 @@ services:
     Guc\SearchBundle\Indexer\FaqIndexer:
         tags: ['guc.search.indexer']
 
+    # Public wrapper so SearchIndexModule can fetch indexers via System::getContainer()->get()
+    Guc\SearchBundle\Indexer\IndexerRegistry:
+        public: true
+        arguments:
+            $indexers: !tagged_iterator guc.search.indexer
 
     Guc\SearchBundle\Cron\RebuildSearchIndexCron:
         arguments:
@@ -46,7 +52,10 @@ services:
         public: true
         tags: ['controller.service_arguments']
 
+    Guc\SearchBundle\Controller\FrontendModule\SearchModuleController:
+        public: true
+        tags: ['controller.service_arguments']
+
     Guc\SearchBundle\Backend\SearchIndexModule:
         public: true
-        arguments:
-            $indexers: !tagged_iterator guc.search.indexer
+
