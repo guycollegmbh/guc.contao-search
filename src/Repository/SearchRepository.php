@@ -238,10 +238,21 @@ class SearchRepository
 
     // Deletes all entries whose id starts with $prefix — used by PageIndexer to clear
     // all page-related entries regardless of which category type they were indexed under.
+    // Two-step via rowid because FTS5 GLOB on UNINDEXED columns is unreliable in DELETE.
     public function clearByIdPrefix(string $prefix): void
     {
-        $stmt = $this->pdo->prepare("DELETE FROM search_index WHERE id GLOB :pattern");
+        $stmt = $this->pdo->prepare("SELECT rowid FROM search_index WHERE id GLOB :pattern");
         $stmt->execute([':pattern' => $prefix . '*']);
+        $rowids = $stmt->fetchAll(\PDO::FETCH_COLUMN);
+
+        if (empty($rowids)) {
+            return;
+        }
+
+        $del = $this->pdo->prepare("DELETE FROM search_index WHERE rowid = :rowid");
+        foreach ($rowids as $rowid) {
+            $del->execute([':rowid' => (int) $rowid]);
+        }
     }
 
     private function getDistinctTypes(): array

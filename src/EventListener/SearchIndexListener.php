@@ -86,6 +86,20 @@ class SearchIndexListener
         $this->eventIndexer->index();
     }
 
+    // --- Suchkategorien — Neuindexierung der Seiten bei Änderung ---
+
+    #[AsCallback(table: 'tl_guc_category', target: 'config.onsubmit')]
+    public function onCategorySubmit(DataContainer $dc): void
+    {
+        $this->pageIndexer->index();
+    }
+
+    #[AsCallback(table: 'tl_guc_category', target: 'config.ondelete')]
+    public function onCategoryDelete(DataContainer $dc, int $undoId): void
+    {
+        $this->pageIndexer->index();
+    }
+
     // --- Files ---
 
     #[AsCallback(table: 'tl_files', target: 'config.onsubmit')]
