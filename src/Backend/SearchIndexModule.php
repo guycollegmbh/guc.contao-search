@@ -34,7 +34,7 @@ class SearchIndexModule
         $twig = $container->get('twig');
 
         /** @var CsrfTokenManagerInterface $csrf */
-        $csrf = $container->get('security.csrf.token_manager');
+        $csrf = $container->get(CsrfTokenManagerInterface::class);
 
         $request = $container->get('request_stack')->getCurrentRequest();
 
