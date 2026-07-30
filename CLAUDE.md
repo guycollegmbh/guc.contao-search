@@ -23,6 +23,9 @@ php bin/console guc:search:index
 
 # Nur einen Typ indexieren (page, file, news, event, member, faq)
 php bin/console guc:search:index --type=news
+
+# Nach DCA-Änderungen (neue Felder in tl_guc_category etc.)
+php bin/console contao:migrate
 ```
 
 ## Architektur
@@ -55,11 +58,17 @@ gelöscht — unabhängig davon, unter welchem Typ sie gespeichert waren.
 
 Im Backend unter **"Erweiterte Suche → Kategorien"** können Kategorien verwaltet werden.
 
-| Feld | Bedeutung |
-|---|---|
-| `title` | Anzeigename im Suchoverlay (z.B. «Team») |
-| `alias` | Technischer Schlüssel im FTS-Index (z.B. `team`), eindeutig, auto-generiert |
-| `active` | Nur aktive Kategorien erscheinen in der Suche |
+| Feld | Typ | Bedeutung |
+|---|---|---|
+| `title` | string | Anzeigename im Suchoverlay (z.B. «Team») |
+| `alias` | string | Technischer Schlüssel im FTS-Index (z.B. `team`), eindeutig, auto-generiert |
+| `color` | string (7) | Hex-Farbcode **ohne** `#`-Prefix (z.B. `e30613`), Leer = Standard-Grau |
+| `lightText` | checkbox | `1` = Badge-Schriftfarbe weiss (für dunkle Hintergrundfarben) |
+| `active` | checkbox | Nur aktive Kategorien erscheinen in der Suche |
+
+**Farbsystem:** Contao's Colorpicker speichert Hex-Werte **ohne** `#`-Prefix in der DB.
+Der `SearchApiController` normalisiert dies beim Lesen (`'#' . ltrim($color, '#')`),
+damit im Frontend ein gültiger CSS-Farbwert ankommt.
 
 **Zuweisung zu Artikeln:** Im Contao-Artikel-Editor erscheint unter der Legende
 "Erweiterte Suche" ein Checkbox-Widget `guc_categories`.
@@ -78,20 +87,20 @@ Wichtige Methoden:
 | Methode | Zweck |
 |---|---|
 | `clearType(string $type)` | Alle Einträge eines Typs löschen |
-| `clearByIdPrefix(string $prefix)` | Alle Einträge löschen, deren `id` mit Präfix beginnt (SQLite GLOB) |
+| `clearByIdPrefix(string $prefix)` | Alle Einträge löschen, deren `id` mit Präfix beginnt — zwei-stufig: rowid SELECT → DELETE (GLOB auf FTS5 DELETE ist unzuverlässig) |
 | `searchGrouped(...)` | Gruppierte Suche — Fallback: `getDistinctTypes()` aus dem Index |
 
 ### Controller
 
 | Klasse | Route | Zweck |
 |---|---|---|
-| `SearchApiController` | `GET /api/search` | JSON-API, Query-Params: `q`, `lang`, `type`, `page` |
+| `SearchApiController` | `GET /api/search` | JSON-API, Query-Params: `q`, `lang`, `type`, `page`, `types` |
 | `SearchIndexController` | `GET/POST /contao/guc-search` | Backend-Verwaltung (ADMIN) |
 | `SearchModuleController` | Fragment | Contao Frontend-Modul (`guc_search`) |
 
 `SearchApiController` lädt aktive Kategorien aus `tl_guc_category` (via Doctrine DBAL),
-um `allowedTypes` und `badgeLabels` dynamisch zu befüllen. Kategorie-Aliases werden
-dabei den fixen Typen (`page`, `file`, `news`, `event`, `member`, `faq`)
+um `allowedTypes`, `badgeLabels`, `categoryColors` und `categoryLightText` dynamisch zu befüllen.
+Kategorie-Aliases werden den fixen Typen (`page`, `file`, `news`, `event`, `member`, `faq`)
 vorangestellt, damit sie in der gruppierten Antwort zuerst erscheinen.
 
 ### API-Response-Format
@@ -100,11 +109,22 @@ Ohne `type`-Filter (gruppiert):
 ```json
 {
   "grouped": [
-    { "type": "team", "label": "Team", "results": [...], "total": 5, "hasMore": false }
+    {
+      "type": "team",
+      "label": "Team",
+      "results": [...],
+      "total": 5,
+      "hasMore": false,
+      "color": "#e30613",
+      "lightText": true
+    }
   ],
   "query": "suchbegriff"
 }
 ```
+
+- `color` — nur vorhanden, wenn in `tl_guc_category.color` ein Wert gesetzt ist (mit `#`-Prefix normalisiert)
+- `lightText` — nur vorhanden (und `true`), wenn `tl_guc_category.lightText = '1'`
 
 Mit `type`-Filter (paginiert):
 ```json
@@ -117,6 +137,20 @@ Mit `type`-Filter (paginiert):
 Konfiguration über `data-*`-Attribute des `.guc-search`-Containers:
 - `data-api-url`, `data-min-chars`, `data-debounce`, `data-lang`
 
+**Badge-Farben:**
+- Fixe Typen (`page`, `file`, `news`, `event`, `member`, `faq`) haben je eine CSS-Klasse
+  `.guc-search__badge--{type}` mit hartcodierten Farben.
+- Manuelle Kategorien erhalten ihre Farbe via Inline-Style aus der API-Response
+  (`badge.style.backgroundColor = group.color`). Inline-Style überschreibt die CSS-Klasse.
+- Wenn `group.lightText === true`, wird zusätzlich `badge.style.color = '#ffffff'` gesetzt.
+- Ohne gesetzten Farbwert greift die Basisklasse `.guc-search__badge` (Standard-Grau).
+
+**Typ-Auswahl im Frontend-Modul:**
+- Im Modul-Backend wird die Checkbox `_categories` für "Manuelle Kategorien (alle aktiven)" angeboten.
+- `SearchModuleController` ersetzt `_categories` zur Laufzeit durch alle aktiven Kategorie-Aliases aus der DB.
+- Fixe Typen werden direkt als Checkboxen konfiguriert.
+- Neue Kategorien erscheinen automatisch ohne Modul-Neukonfiguration.
+
 ## Datei-Struktur
 
 ```
@@ -128,9 +162,9 @@ src/
     FrontendModule/SearchModuleController.php
     SearchApiController.php
   DependencyInjection/GucSearchExtension.php
+  EventListener/SearchIndexListener.php  Re-Index-Callbacks für tl_guc_category
   GucSearchBundle.php
   Indexer/
-    CustomTableIndexer.php
     EventIndexer.php
     FileIndexer.php
     IndexerInterface.php
@@ -142,8 +176,7 @@ contao/
   config/config.php                     BE_MOD-Registrierung "Erweiterte Suche"
   dca/tl_article.php                    Erweiterung: Feld guc_categories (checkboxWizard)
   dca/tl_guc_category.php              DCA für Kategorieverwaltung
-  dca/tl_module.php                     Felder: guc_search_min_chars, guc_search_resultsPage
-  dca/tl_search_config.php              DCA für Custom-Tabellen-Konfiguration
+  dca/tl_module.php                     Felder: guc_search_min_chars, guc_search_types, guc_search_resultsPage
   languages/de/ + en/
     default.php                         MOD-Labels inkl. "Erweiterte Suche"
     tl_article.php                      Labels für guc_categories-Feld
@@ -165,23 +198,26 @@ Das Backend-Modul wird unter einer eigenen Gruppe "Erweiterte Suche" angezeigt:
 | Modul | Tabelle | Zweck |
 |---|---|---|
 | Kategorien | `tl_guc_category` | Manuelle Suchkategorien anlegen/bearbeiten |
-| Tabellen-Konfiguration | `tl_search_config` | Custom-Inhaltsquellen konfigurieren |
 
 Nach dem Anlegen/Ändern von Kategorien muss der Suchindex neu aufgebaut werden:
 ```bash
 php bin/console guc:search:index --type=page
 ```
 
+Nach Änderungen am DCA (neue Felder) muss die Datenbank migriert werden:
+```bash
+php bin/console contao:migrate
+```
+
 ## Sicherheit
 
 ### Was das Bundle selbst absichert
-- API-Parameter (`q`, `type`, `lang`) werden validiert und auf dynamischer Whitelist geprüft
+- API-Parameter (`q`, `type`, `lang`, `types`) werden validiert und auf dynamischer Whitelist geprüft
 - `type`-Whitelist = feste Typen + aktive Kategorie-Aliases aus `tl_guc_category`
 - FTS5-Query wird von Sonderzeichen bereinigt (`sanitizeQuery`)
 - API-Response gibt nur explizit erlaubte Felder zurück (`formatResult`)
 - Excerpt erlaubt serverseitig nur `<mark>`-Tags (`strip_tags($excerpt, '<mark>')`)
 - Backend-Route erfordert `ROLE_ADMIN` + CSRF-Token
-- `CustomTableIndexer` validiert Tabellen-/Feldnamen via `^\w+$`
 - `unserialize()` mit `['allowed_classes' => false]`
 
 ### Rate-Limiting — muss auf Anwendungsebene konfiguriert werden
@@ -217,9 +253,3 @@ Siehe `STATUS.md` für den aktuellen Entwicklungsstand.
 ## Twig-Namespace
 
 `@GucSearch/` → `templates/` (registriert in `GucSearchExtension`)
-
-## Custom-Table-Konfiguration (tl_search_config)
-
-Im Backend unter "Erweiterte Suche → Tabellen-Konfiguration" können beliebige Tabellen
-indexiert werden. Pflichtfelder: `tableName`, `titleField`, `bodyField`, `urlPattern`
-(mit `%s`-Platzhalter). SQL-Injection-Schutz: Identifier werden via Regex `^\w+$` validiert.
