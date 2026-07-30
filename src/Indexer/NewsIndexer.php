@@ -23,8 +23,7 @@ class NewsIndexer implements IndexerInterface
 
     public function index(): int
     {
-        $count = 0;
-
+        $now = time();
         try {
             $news = $this->db->fetchAllAssociative("
                 SELECT n.id, n.headline, n.teaser, n.alias,
@@ -33,9 +32,9 @@ class NewsIndexer implements IndexerInterface
                 JOIN tl_news_archive na ON na.id = n.pid
                 LEFT JOIN tl_page p ON p.id = na.jumpTo
                 WHERE n.published = '1'
-                AND (n.start = '' OR n.start <= UNIX_TIMESTAMP())
-                AND (n.stop = '' OR n.stop > UNIX_TIMESTAMP())
-            ");
+                AND (n.start = '' OR n.start <= :now)
+                AND (n.stop = '' OR n.stop > :now)
+            ", ['now' => $now]);
         } catch (\Exception $e) {
             $this->logger?->warning('GUC Search: NewsIndexer failed - ' . $e->getMessage());
             return 0;
@@ -44,8 +43,6 @@ class NewsIndexer implements IndexerInterface
         if (empty($news)) {
             return 0;
         }
-
-        $this->searchRepository->clearType('news');
 
         $allPages = $this->db->fetchAllAssociative("SELECT id, pid, type, alias, urlSuffix FROM tl_page");
         $pageMap = array_column($allPages, null, 'id');
@@ -56,10 +53,19 @@ class NewsIndexer implements IndexerInterface
                 $suffixMap[$p['id']] = $p['urlSuffix'] ?? '';
             }
         }
+
+        // Null sentinel breaks potential circular pid references
         $resolveSuffix = function (int $id) use (&$resolveSuffix, $pageMap, &$suffixMap): string {
-            if (isset($suffixMap[$id])) return $suffixMap[$id];
-            if (!isset($pageMap[$id])) return '';
-            return $suffixMap[$id] = $resolveSuffix((int) $pageMap[$id]['pid']);
+            if (array_key_exists($id, $suffixMap)) {
+                return $suffixMap[$id] ?? '';
+            }
+            if (!isset($pageMap[$id])) {
+                return '';
+            }
+            $suffixMap[$id] = null; // cycle sentinel
+            $suffix = $resolveSuffix((int) $pageMap[$id]['pid']);
+            $suffixMap[$id] = $suffix;
+            return $suffix;
         };
 
         $contentRows = $this->db->fetchAllAssociative("
@@ -74,34 +80,44 @@ class NewsIndexer implements IndexerInterface
             $contentByNews[(int) $row['newsId']][] = $row;
         }
 
-        foreach ($news as $item) {
-            $body = strip_tags($item['teaser'] ?? '');
-            foreach ($contentByNews[(int) $item['id']] ?? [] as $content) {
-                $body .= ' ' . strip_tags($content['text'] ?? '');
-                if (!empty($content['headline'])) {
-                    $hl = @unserialize($content['headline'], ['allowed_classes' => false]);
-                    if (is_array($hl) && isset($hl['value'])) {
-                        $body .= ' ' . strip_tags($hl['value']);
+        $count = 0;
+        $this->searchRepository->beginTransaction();
+        try {
+            $this->searchRepository->clearType('news');
+
+            foreach ($news as $item) {
+                $body = strip_tags($item['teaser'] ?? '');
+                foreach ($contentByNews[(int) $item['id']] ?? [] as $content) {
+                    $body .= ' ' . strip_tags($content['text'] ?? '');
+                    if (!empty($content['headline'])) {
+                        $hl = @unserialize($content['headline'], ['allowed_classes' => false]);
+                        if (is_array($hl) && isset($hl['value'])) {
+                            $body .= ' ' . strip_tags($hl['value']);
+                        }
                     }
                 }
+                $jumpTo = (int) $item['jumpTo'];
+                $pageAlias = $pageMap[$jumpTo]['alias'] ?? 'news';
+                $suffix = $resolveSuffix($jumpTo);
+
+                $this->searchRepository->insert([
+                    'id'       => 'news_' . $item['id'],
+                    'type'     => 'news',
+                    'language' => $item['language'] ?? '',
+                    'title'    => strip_tags($item['headline']),
+                    'body'     => trim($body),
+                    'url'      => '/' . $pageAlias . '/' . $item['alias'] . $suffix,
+                    'badge'    => 'News',
+                ]);
+                $count++;
             }
-            $jumpTo = (int) $item['jumpTo'];
-            $pageAlias = $pageMap[$jumpTo]['alias'] ?? 'news';
-            $suffix = $resolveSuffix($jumpTo);
 
-            $this->searchRepository->insert([
-                'id'       => 'news_' . $item['id'],
-                'type'     => 'news',
-                'language' => $item['language'] ?? '',
-                'title'    => strip_tags($item['headline']),
-                'body'     => trim($body),
-                'url'      => '/' . $pageAlias . '/' . $item['alias'] . $suffix,
-                'badge'    => 'News',
-            ]);
-            $count++;
+            $this->searchRepository->setMeta('last_index_news', date('Y-m-d H:i:s'));
+            $this->searchRepository->commit();
+        } catch (\Throwable $e) {
+            $this->searchRepository->rollback();
+            throw $e;
         }
-
-        $this->searchRepository->setMeta('last_index_news', date('Y-m-d H:i:s'));
 
         return $count;
     }

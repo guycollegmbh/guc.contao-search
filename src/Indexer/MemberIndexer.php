@@ -23,16 +23,15 @@ class MemberIndexer implements IndexerInterface
 
     public function index(): int
     {
-        $count = 0;
-
+        $now = time();
         try {
             $members = $this->db->fetchAllAssociative("
                 SELECT id, firstname, lastname, company
                 FROM tl_member
                 WHERE disable = ''
-                AND (start = '' OR start <= UNIX_TIMESTAMP())
-                AND (stop = '' OR stop > UNIX_TIMESTAMP())
-            ");
+                AND (start = '' OR start <= :now)
+                AND (stop = '' OR stop > :now)
+            ", ['now' => $now]);
         } catch (\Exception $e) {
             $this->logger?->warning('GUC Search: MemberIndexer failed - ' . $e->getMessage());
             return 0;
@@ -42,9 +41,7 @@ class MemberIndexer implements IndexerInterface
             return 0;
         }
 
-        $this->searchRepository->clearType('member');
-
-        // Build page tree for URL suffix and language resolution
+        // Build page tree for URL suffix and language resolution before clearing the index
         $allPages = $this->db->fetchAllAssociative(
             "SELECT id, pid, type, alias, language, urlSuffix FROM tl_page"
         );
@@ -59,16 +56,31 @@ class MemberIndexer implements IndexerInterface
             }
         }
 
+        // Null sentinel breaks potential circular pid references
         $resolveLanguage = function (int $id) use (&$resolveLanguage, $pageMap, &$languageMap): string {
-            if (isset($languageMap[$id])) return $languageMap[$id];
-            if (!isset($pageMap[$id])) return '';
-            return $languageMap[$id] = $resolveLanguage((int) $pageMap[$id]['pid']);
+            if (array_key_exists($id, $languageMap)) {
+                return $languageMap[$id] ?? '';
+            }
+            if (!isset($pageMap[$id])) {
+                return '';
+            }
+            $languageMap[$id] = null; // cycle sentinel
+            $lang = $resolveLanguage((int) $pageMap[$id]['pid']);
+            $languageMap[$id] = $lang;
+            return $lang;
         };
 
         $resolveSuffix = function (int $id) use (&$resolveSuffix, $pageMap, &$suffixMap): string {
-            if (isset($suffixMap[$id])) return $suffixMap[$id];
-            if (!isset($pageMap[$id])) return '';
-            return $suffixMap[$id] = $resolveSuffix((int) $pageMap[$id]['pid']);
+            if (array_key_exists($id, $suffixMap)) {
+                return $suffixMap[$id] ?? '';
+            }
+            if (!isset($pageMap[$id])) {
+                return '';
+            }
+            $suffixMap[$id] = null; // cycle sentinel
+            $suffix = $resolveSuffix((int) $pageMap[$id]['pid']);
+            $suffixMap[$id] = $suffix;
+            return $suffix;
         };
 
         $memberPage = $this->findMemberPage();
@@ -77,25 +89,35 @@ class MemberIndexer implements IndexerInterface
         $language = $memberPageId ? $resolveLanguage($memberPageId) : '';
         $suffix = $memberPageId ? $resolveSuffix($memberPageId) : '';
 
-        foreach ($members as $member) {
-            $title = trim(($member['firstname'] ?? '') . ' ' . ($member['lastname'] ?? ''));
-            if (empty($title)) {
-                continue;
+        $count = 0;
+        $this->searchRepository->beginTransaction();
+        try {
+            $this->searchRepository->clearType('member');
+
+            foreach ($members as $member) {
+                $title = trim(($member['firstname'] ?? '') . ' ' . ($member['lastname'] ?? ''));
+                if (empty($title)) {
+                    continue;
+                }
+
+                $this->searchRepository->insert([
+                    'id'       => 'member_' . $member['id'],
+                    'type'     => 'member',
+                    'language' => $language,
+                    'title'    => $title,
+                    'body'     => strip_tags($member['company'] ?? ''),
+                    'url'      => '/' . $memberPageAlias . $suffix,
+                    'badge'    => 'Team',
+                ]);
+                $count++;
             }
 
-            $this->searchRepository->insert([
-                'id'       => 'member_' . $member['id'],
-                'type'     => 'member',
-                'language' => $language,
-                'title'    => $title,
-                'body'     => strip_tags($member['company'] ?? ''),
-                'url'      => '/' . $memberPageAlias . $suffix,
-                'badge'    => 'Team',
-            ]);
-            $count++;
+            $this->searchRepository->setMeta('last_index_member', date('Y-m-d H:i:s'));
+            $this->searchRepository->commit();
+        } catch (\Throwable $e) {
+            $this->searchRepository->rollback();
+            throw $e;
         }
-
-        $this->searchRepository->setMeta('last_index_member', date('Y-m-d H:i:s'));
 
         return $count;
     }

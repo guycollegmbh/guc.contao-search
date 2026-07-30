@@ -42,14 +42,23 @@ class SearchIndexController extends AbstractController
 
             $reindexType = $request->request->get('reindex', '');
             if (\in_array($reindexType, $allowedTypes, true)) {
+                $errors = [];
                 foreach ($this->indexers as $indexer) {
                     if ($reindexType === 'all' || $indexer->getType() === $reindexType) {
-                        $indexer->index();
+                        try {
+                            $indexer->index();
+                        } catch (\Throwable $e) {
+                            $errors[] = sprintf('"%s": %s', $indexer->getType(), $e->getMessage());
+                        }
                     }
                 }
-                $message = $reindexType === 'all'
-                    ? 'Gesamter Index wurde neu aufgebaut.'
-                    : sprintf('Index für "%s" wurde neu aufgebaut.', $reindexType);
+                if (!empty($errors)) {
+                    $message = 'Fehler beim Indexieren: ' . implode('; ', $errors);
+                } else {
+                    $message = $reindexType === 'all'
+                        ? 'Gesamter Index wurde neu aufgebaut.'
+                        : sprintf('Index für "%s" wurde neu aufgebaut.', $reindexType);
+                }
             }
         }
 

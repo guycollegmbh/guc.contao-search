@@ -60,50 +60,26 @@ class SearchRepository
         }
     }
 
-    public function search(string $query, string $language = '', int $limit = 10, int $offset = 0): array
+    // --- Transaction support ---
+
+    public function beginTransaction(): void
     {
-        $query = $this->sanitizeQuery($query);
-        if (empty($query)) {
-            return [];
-        }
-
-        $ftsQuery = $query . '*';
-
-        if ($language !== '') {
-            $sql = "
-                SELECT id, type, language, title, url, badge,
-                       snippet(search_index, 4, '<mark>', '</mark>', '…', 32) AS excerpt,
-                       snippet(search_index, 3, '<mark>', '</mark>', '', 20) AS titleHighlight
-                FROM search_index
-                WHERE search_index MATCH :query
-                AND (language = :language OR language = '')
-                ORDER BY bm25(search_index, 0.0, 0.0, 0.0, 10.0, 1.0, 0.0, 0.0, 0.0)
-                LIMIT :limit OFFSET :offset
-            ";
-            $params = [':query' => $ftsQuery, ':language' => $language];
-        } else {
-            $sql = "
-                SELECT id, type, language, title, url, badge,
-                       snippet(search_index, 4, '<mark>', '</mark>', '…', 32) AS excerpt,
-                       snippet(search_index, 3, '<mark>', '</mark>', '', 20) AS titleHighlight
-                FROM search_index
-                WHERE search_index MATCH :query
-                ORDER BY bm25(search_index, 0.0, 0.0, 0.0, 10.0, 1.0, 0.0, 0.0, 0.0)
-                LIMIT :limit OFFSET :offset
-            ";
-            $params = [':query' => $ftsQuery];
-        }
-
-        $stmt = $this->pdo->prepare($sql);
-        foreach ($params as $key => $value) {
-            $stmt->bindValue($key, $value);
-        }
-        $stmt->bindValue(':limit', $limit, \PDO::PARAM_INT);
-        $stmt->bindValue(':offset', $offset, \PDO::PARAM_INT);
-        $stmt->execute();
-
-        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $this->pdo->beginTransaction();
     }
+
+    public function commit(): void
+    {
+        $this->pdo->commit();
+    }
+
+    public function rollback(): void
+    {
+        if ($this->pdo->inTransaction()) {
+            $this->pdo->rollBack();
+        }
+    }
+
+    // --- Search ---
 
     public function searchGrouped(string $query, string $language = '', int $perGroup = 10, array $enabledTypes = []): array
     {
@@ -230,6 +206,8 @@ class SearchRepository
         return $counts;
     }
 
+    // --- Write ---
+
     public function clearType(string $type): void
     {
         $stmt = $this->pdo->prepare("DELETE FROM search_index WHERE type = :type");
@@ -249,21 +227,15 @@ class SearchRepository
             return;
         }
 
-        $del = $this->pdo->prepare("DELETE FROM search_index WHERE rowid = :rowid");
-        foreach ($rowids as $rowid) {
-            $del->execute([':rowid' => (int) $rowid]);
-        }
+        $placeholders = implode(',', array_fill(0, count($rowids), '?'));
+        $this->pdo->prepare("DELETE FROM search_index WHERE rowid IN ($placeholders)")
+            ->execute($rowids);
     }
 
     private function getDistinctTypes(): array
     {
         $stmt = $this->pdo->query("SELECT DISTINCT type FROM search_index ORDER BY type");
         return $stmt->fetchAll(\PDO::FETCH_COLUMN);
-    }
-
-    public function clearAll(): void
-    {
-        $this->pdo->exec("DELETE FROM search_index");
     }
 
     public function insert(array $record): void

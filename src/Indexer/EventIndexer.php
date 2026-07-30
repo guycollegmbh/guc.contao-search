@@ -23,8 +23,7 @@ class EventIndexer implements IndexerInterface
 
     public function index(): int
     {
-        $count = 0;
-
+        $now = time();
         try {
             $events = $this->db->fetchAllAssociative("
                 SELECT e.id, e.title, e.teaser, e.alias,
@@ -33,9 +32,9 @@ class EventIndexer implements IndexerInterface
                 JOIN tl_calendar c ON c.id = e.pid
                 LEFT JOIN tl_page p ON p.id = c.jumpTo
                 WHERE e.published = '1'
-                AND (e.start = '' OR e.start <= UNIX_TIMESTAMP())
-                AND (e.stop = '' OR e.stop > UNIX_TIMESTAMP())
-            ");
+                AND (e.start = '' OR e.start <= :now)
+                AND (e.stop = '' OR e.stop > :now)
+            ", ['now' => $now]);
         } catch (\Exception $e) {
             $this->logger?->warning('GUC Search: EventIndexer failed - ' . $e->getMessage());
             return 0;
@@ -44,8 +43,6 @@ class EventIndexer implements IndexerInterface
         if (empty($events)) {
             return 0;
         }
-
-        $this->searchRepository->clearType('event');
 
         $allPages = $this->db->fetchAllAssociative("SELECT id, pid, type, alias, urlSuffix FROM tl_page");
         $pageMap = array_column($allPages, null, 'id');
@@ -56,10 +53,19 @@ class EventIndexer implements IndexerInterface
                 $suffixMap[$p['id']] = $p['urlSuffix'] ?? '';
             }
         }
+
+        // Null sentinel breaks potential circular pid references
         $resolveSuffix = function (int $id) use (&$resolveSuffix, $pageMap, &$suffixMap): string {
-            if (isset($suffixMap[$id])) return $suffixMap[$id];
-            if (!isset($pageMap[$id])) return '';
-            return $suffixMap[$id] = $resolveSuffix((int) $pageMap[$id]['pid']);
+            if (array_key_exists($id, $suffixMap)) {
+                return $suffixMap[$id] ?? '';
+            }
+            if (!isset($pageMap[$id])) {
+                return '';
+            }
+            $suffixMap[$id] = null; // cycle sentinel
+            $suffix = $resolveSuffix((int) $pageMap[$id]['pid']);
+            $suffixMap[$id] = $suffix;
+            return $suffix;
         };
 
         $contentRows = $this->db->fetchAllAssociative("
@@ -74,34 +80,44 @@ class EventIndexer implements IndexerInterface
             $contentByEvent[(int) $row['eventId']][] = $row;
         }
 
-        foreach ($events as $event) {
-            $body = strip_tags($event['teaser'] ?? '');
-            foreach ($contentByEvent[(int) $event['id']] ?? [] as $content) {
-                $body .= ' ' . strip_tags($content['text'] ?? '');
-                if (!empty($content['headline'])) {
-                    $hl = @unserialize($content['headline'], ['allowed_classes' => false]);
-                    if (is_array($hl) && isset($hl['value'])) {
-                        $body .= ' ' . strip_tags($hl['value']);
+        $count = 0;
+        $this->searchRepository->beginTransaction();
+        try {
+            $this->searchRepository->clearType('event');
+
+            foreach ($events as $event) {
+                $body = strip_tags($event['teaser'] ?? '');
+                foreach ($contentByEvent[(int) $event['id']] ?? [] as $content) {
+                    $body .= ' ' . strip_tags($content['text'] ?? '');
+                    if (!empty($content['headline'])) {
+                        $hl = @unserialize($content['headline'], ['allowed_classes' => false]);
+                        if (is_array($hl) && isset($hl['value'])) {
+                            $body .= ' ' . strip_tags($hl['value']);
+                        }
                     }
                 }
+                $jumpTo = (int) $event['jumpTo'];
+                $pageAlias = $pageMap[$jumpTo]['alias'] ?? 'events';
+                $suffix = $resolveSuffix($jumpTo);
+
+                $this->searchRepository->insert([
+                    'id'       => 'event_' . $event['id'],
+                    'type'     => 'event',
+                    'language' => $event['language'] ?? '',
+                    'title'    => strip_tags($event['title']),
+                    'body'     => trim($body),
+                    'url'      => '/' . $pageAlias . '/' . $event['alias'] . $suffix,
+                    'badge'    => 'Events',
+                ]);
+                $count++;
             }
-            $jumpTo = (int) $event['jumpTo'];
-            $pageAlias = $pageMap[$jumpTo]['alias'] ?? 'events';
-            $suffix = $resolveSuffix($jumpTo);
 
-            $this->searchRepository->insert([
-                'id'       => 'event_' . $event['id'],
-                'type'     => 'event',
-                'language' => $event['language'] ?? '',
-                'title'    => strip_tags($event['title']),
-                'body'     => trim($body),
-                'url'      => '/' . $pageAlias . '/' . $event['alias'] . $suffix,
-                'badge'    => 'Events',
-            ]);
-            $count++;
+            $this->searchRepository->setMeta('last_index_event', date('Y-m-d H:i:s'));
+            $this->searchRepository->commit();
+        } catch (\Throwable $e) {
+            $this->searchRepository->rollback();
+            throw $e;
         }
-
-        $this->searchRepository->setMeta('last_index_event', date('Y-m-d H:i:s'));
 
         return $count;
     }

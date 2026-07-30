@@ -8,6 +8,7 @@ use Contao\CoreBundle\DependencyInjection\Attribute\AsCallback;
 use Contao\DataContainer;
 use Guc\SearchBundle\Indexer\EventIndexer;
 use Guc\SearchBundle\Indexer\FileIndexer;
+use Guc\SearchBundle\Indexer\MemberIndexer;
 use Guc\SearchBundle\Indexer\NewsIndexer;
 use Guc\SearchBundle\Indexer\PageIndexer;
 
@@ -18,6 +19,7 @@ class SearchIndexListener
         private readonly NewsIndexer $newsIndexer,
         private readonly EventIndexer $eventIndexer,
         private readonly FileIndexer $fileIndexer,
+        private readonly MemberIndexer $memberIndexer,
     ) {}
 
     // --- News ---
@@ -84,6 +86,20 @@ class SearchIndexListener
         $this->pageIndexer->index();
         $this->newsIndexer->index();
         $this->eventIndexer->index();
+    }
+
+    // --- Members ---
+
+    #[AsCallback(table: 'tl_member', target: 'config.onsubmit')]
+    public function onMemberSubmit(DataContainer $dc): void
+    {
+        $this->memberIndexer->index();
+    }
+
+    #[AsCallback(table: 'tl_member', target: 'config.ondelete')]
+    public function onMemberDelete(DataContainer $dc, int $undoId): void
+    {
+        $this->memberIndexer->index();
     }
 
     // --- Suchkategorien — Neuindexierung der Seiten bei Änderung ---

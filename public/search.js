@@ -54,7 +54,7 @@
             results.addEventListener('keydown', function (e) {
                 var activePanel = results.querySelector('.guc-search__list:not([hidden])');
                 var focusable = Array.prototype.slice.call(
-                    (activePanel || results).querySelectorAll('.guc-search__link')
+                    (activePanel || results).querySelectorAll('.guc-search__link, .guc-search__more')
                 );
                 var idx = focusable.indexOf(document.activeElement);
 
@@ -131,12 +131,14 @@
                 panelsEl.className = 'guc-search__panels';
 
                 data.grouped.forEach(function (group, idx) {
+                    var tabId = 'guc-tab-' + group.type;
                     var panelId = 'guc-panel-' + group.type;
                     var isFirst = idx === 0;
 
                     // Tab
                     var tab = document.createElement('button');
                     tab.type = 'button';
+                    tab.id = tabId;
                     tab.className = 'guc-search__tab' + (isFirst ? ' guc-search__tab--active' : '');
                     tab.dataset.type = group.type;
                     tab.setAttribute('role', 'tab');
@@ -166,6 +168,8 @@
                     list.className = 'guc-search__list';
                     list.id = panelId;
                     list.setAttribute('role', 'tabpanel');
+                    list.setAttribute('aria-labelledby', tabId);
+                    list.setAttribute('tabindex', '0');
                     if (!isFirst) list.hidden = true;
 
                     group.results.forEach(function (result) {
@@ -196,6 +200,18 @@
                         list.appendChild(li);
                     });
 
+                    // "Mehr anzeigen" link when there are more results than shown
+                    if (group.hasMore && resultsUrl) {
+                        var moreLi = document.createElement('li');
+                        moreLi.className = 'guc-search__item guc-search__item--more';
+                        var more = document.createElement('a');
+                        more.className = 'guc-search__more';
+                        more.href = resultsUrl + '?keywords=' + encodeURIComponent(query) + '&type=' + encodeURIComponent(group.type);
+                        more.textContent = 'Alle ' + group.total + ' Ergebnisse anzeigen →';
+                        moreLi.appendChild(more);
+                        list.appendChild(moreLi);
+                    }
+
                     panelsEl.appendChild(list);
                 });
 
@@ -223,14 +239,6 @@
             function hideResults() {
                 results.hidden = true;
                 currentQuery = '';
-            }
-
-            function escHtml(str) {
-                return String(str)
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;')
-                    .replace(/"/g, '&quot;');
             }
         }); // end forEach
     } // end initSearch

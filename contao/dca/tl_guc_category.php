@@ -42,9 +42,9 @@ $GLOBALS['TL_DCA']['tl_guc_category'] = [
                 'attributes' => 'onclick="if(!confirm(\'' . ($GLOBALS['TL_LANG']['MSC']['deleteConfirm'] ?? 'Wirklich löschen?') . '\'))return false;Backend.getScrollOffset()"',
             ],
             'toggle' => [
-                'href'          => 'act=toggle&field=active',
-                'icon'          => 'visible.svg',
-                'reverseToggle' => 'invisible.svg',
+                'href'         => 'act=toggle&field=active',
+                'icon'         => 'visible.svg',
+                'iconInactive' => 'invisible.svg',
             ],
         ],
     ],

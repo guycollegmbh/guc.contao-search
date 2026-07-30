@@ -5,6 +5,9 @@
 
 // Backend module group "Erweiterte Suche"
 $GLOBALS['BE_MOD']['erweiterte_suche'] = [
+    'guc_search_index' => [
+        'route' => 'guc_search_backend',
+    ],
     'guc_search_categories' => [
         'tables' => ['tl_guc_category'],
     ],

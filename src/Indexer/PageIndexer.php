@@ -57,7 +57,8 @@ class PageIndexer implements IndexerInterface
             }
         }
 
-        // Build pid -> page map and resolve language + urlSuffix by walking up to root
+        // Build pid -> page map and resolve language + urlSuffix by walking up to root.
+        // Null sentinel in the memoization maps breaks potential circular pid references.
         $allPages = $this->db->fetchAllAssociative("SELECT id, pid, type, language, urlSuffix FROM tl_page");
         $pageMap  = [];
         foreach ($allPages as $p) {
@@ -74,26 +75,28 @@ class PageIndexer implements IndexerInterface
         }
 
         $resolveLanguage = function (int $id) use (&$resolveLanguage, $pageMap, &$languageMap): string {
-            if (isset($languageMap[$id])) {
-                return $languageMap[$id];
+            if (array_key_exists($id, $languageMap)) {
+                return $languageMap[$id] ?? '';
             }
             if (!isset($pageMap[$id])) {
                 return '';
             }
-            $lang            = $resolveLanguage((int) $pageMap[$id]['pid']);
+            $languageMap[$id] = null; // cycle sentinel
+            $lang = $resolveLanguage((int) $pageMap[$id]['pid']);
             $languageMap[$id] = $lang;
             return $lang;
         };
 
         $resolveSuffix = function (int $id) use (&$resolveSuffix, $pageMap, &$suffixMap): string {
-            if (isset($suffixMap[$id])) {
-                return $suffixMap[$id];
+            if (array_key_exists($id, $suffixMap)) {
+                return $suffixMap[$id] ?? '';
             }
             if (!isset($pageMap[$id])) {
                 return '';
             }
-            $suffix          = $resolveSuffix((int) $pageMap[$id]['pid']);
-            $suffixMap[$id]  = $suffix;
+            $suffixMap[$id] = null; // cycle sentinel
+            $suffix = $resolveSuffix((int) $pageMap[$id]['pid']);
+            $suffixMap[$id] = $suffix;
             return $suffix;
         };
 
@@ -131,64 +134,72 @@ class PageIndexer implements IndexerInterface
             $contentByPage[(int) $row['pageId']][] = $row;
         }
 
-        // Clear ALL page-related entries (type may now be a category alias, not just 'page')
-        $this->searchRepository->clearByIdPrefix('page_');
+        // Wrap clear + inserts in a transaction so an aborted run never leaves an empty index.
+        $this->searchRepository->beginTransaction();
+        try {
+            // Clear ALL page-related entries (type may now be a category alias, not just 'page')
+            $this->searchRepository->clearByIdPrefix('page_');
 
-        foreach ($pages as $page) {
-            $pageId   = (int) $page['id'];
-            $language = $resolveLanguage($pageId);
-            $url      = '/' . ($page['alias'] ?? '') . $resolveSuffix($pageId);
-            $title    = strip_tags($page['title']);
+            foreach ($pages as $page) {
+                $pageId   = (int) $page['id'];
+                $language = $resolveLanguage($pageId);
+                $url      = '/' . ($page['alias'] ?? '') . $resolveSuffix($pageId);
+                $title    = strip_tags($page['title']);
 
-            if (isset($searchByPage[$pageId])) {
-                $body = strip_tags($searchByPage[$pageId]);
-            } else {
-                $body = '';
-                foreach ($contentByPage[$pageId] ?? [] as $content) {
-                    $body .= ' ' . strip_tags($content['text'] ?? '');
-                    if (!empty($content['headline'])) {
-                        $hl = @unserialize($content['headline'], ['allowed_classes' => false]);
-                        if (is_array($hl) && isset($hl['value'])) {
-                            $body .= ' ' . strip_tags($hl['value']);
+                if (isset($searchByPage[$pageId])) {
+                    $body = strip_tags($searchByPage[$pageId]);
+                } else {
+                    $body = '';
+                    foreach ($contentByPage[$pageId] ?? [] as $content) {
+                        $body .= ' ' . strip_tags($content['text'] ?? '');
+                        if (!empty($content['headline'])) {
+                            $hl = @unserialize($content['headline'], ['allowed_classes' => false]);
+                            if (is_array($hl) && isset($hl['value'])) {
+                                $body .= ' ' . strip_tags($hl['value']);
+                            }
                         }
                     }
                 }
+
+                $pageCats = $pageCategories[$pageId] ?? [];
+
+                if (empty($pageCats)) {
+                    // No categories assigned — index as generic page
+                    $this->searchRepository->insert([
+                        'id'       => 'page_' . $pageId,
+                        'type'     => 'page',
+                        'language' => $language,
+                        'title'    => $title,
+                        'body'     => trim($body),
+                        'url'      => $url,
+                        'badge'    => 'Seite',
+                    ]);
+                    $count++;
+                    continue;
+                }
+
+                // Index once per assigned category
+                foreach (array_keys($pageCats) as $catId) {
+                    $cat = $categoryMap[$catId];
+                    $this->searchRepository->insert([
+                        'id'       => 'page_' . $pageId . '_cat_' . $catId,
+                        'type'     => $cat['alias'],
+                        'language' => $language,
+                        'title'    => $title,
+                        'body'     => trim($body),
+                        'url'      => $url,
+                        'badge'    => $cat['title'],
+                    ]);
+                    $count++;
+                }
             }
 
-            $pageCats = $pageCategories[$pageId] ?? [];
-
-            if (empty($pageCats)) {
-                // No categories assigned — index as generic page
-                $this->searchRepository->insert([
-                    'id'       => 'page_' . $pageId,
-                    'type'     => 'page',
-                    'language' => $language,
-                    'title'    => $title,
-                    'body'     => trim($body),
-                    'url'      => $url,
-                    'badge'    => 'Seite',
-                ]);
-                $count++;
-                continue;
-            }
-
-            // Index once per assigned category
-            foreach (array_keys($pageCats) as $catId) {
-                $cat = $categoryMap[$catId];
-                $this->searchRepository->insert([
-                    'id'       => 'page_' . $pageId . '_cat_' . $catId,
-                    'type'     => $cat['alias'],
-                    'language' => $language,
-                    'title'    => $title,
-                    'body'     => trim($body),
-                    'url'      => $url,
-                    'badge'    => $cat['title'],
-                ]);
-                $count++;
-            }
+            $this->searchRepository->setMeta('last_index_page', date('Y-m-d H:i:s'));
+            $this->searchRepository->commit();
+        } catch (\Throwable $e) {
+            $this->searchRepository->rollback();
+            throw $e;
         }
-
-        $this->searchRepository->setMeta('last_index_page', date('Y-m-d H:i:s'));
 
         return $count;
     }

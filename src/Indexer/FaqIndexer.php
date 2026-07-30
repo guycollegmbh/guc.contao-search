@@ -23,8 +23,6 @@ class FaqIndexer implements IndexerInterface
 
     public function index(): int
     {
-        $count = 0;
-
         try {
             $faqs = $this->db->fetchAllAssociative("
                 SELECT f.id, f.question, f.answer, f.alias,
@@ -43,8 +41,6 @@ class FaqIndexer implements IndexerInterface
             return 0;
         }
 
-        $this->searchRepository->clearType('faq');
-
         $allPages = $this->db->fetchAllAssociative("SELECT id, pid, type, alias, urlSuffix FROM tl_page");
         $pageMap = array_column($allPages, null, 'id');
 
@@ -54,34 +50,53 @@ class FaqIndexer implements IndexerInterface
                 $suffixMap[$p['id']] = $p['urlSuffix'] ?? '';
             }
         }
+
+        // Null sentinel breaks potential circular pid references
         $resolveSuffix = function (int $id) use (&$resolveSuffix, $pageMap, &$suffixMap): string {
-            if (isset($suffixMap[$id])) return $suffixMap[$id];
-            if (!isset($pageMap[$id])) return '';
-            return $suffixMap[$id] = $resolveSuffix((int) $pageMap[$id]['pid']);
+            if (array_key_exists($id, $suffixMap)) {
+                return $suffixMap[$id] ?? '';
+            }
+            if (!isset($pageMap[$id])) {
+                return '';
+            }
+            $suffixMap[$id] = null; // cycle sentinel
+            $suffix = $resolveSuffix((int) $pageMap[$id]['pid']);
+            $suffixMap[$id] = $suffix;
+            return $suffix;
         };
 
-        foreach ($faqs as $faq) {
-            $jumpTo = (int) $faq['jumpTo'];
-            // C5: skip FAQs whose category has no reader page configured
-            if ($jumpTo === 0) {
-                continue;
+        $count = 0;
+        $this->searchRepository->beginTransaction();
+        try {
+            $this->searchRepository->clearType('faq');
+
+            foreach ($faqs as $faq) {
+                $jumpTo = (int) $faq['jumpTo'];
+                // C5: skip FAQs whose category has no reader page configured
+                if ($jumpTo === 0) {
+                    continue;
+                }
+                $pageAlias = $pageMap[$jumpTo]['alias'] ?? 'faq';
+                $suffix = $resolveSuffix($jumpTo);
+
+                $this->searchRepository->insert([
+                    'id'       => 'faq_' . $faq['id'],
+                    'type'     => 'faq',
+                    'language' => $faq['language'] ?? '',
+                    'title'    => strip_tags($faq['question']),
+                    'body'     => strip_tags($faq['answer'] ?? ''),
+                    'url'      => '/' . $pageAlias . '/' . ($faq['alias'] ?? '') . $suffix,
+                    'badge'    => 'FAQ',
+                ]);
+                $count++;
             }
-            $pageAlias = $pageMap[$jumpTo]['alias'] ?? 'faq';
-            $suffix = $resolveSuffix($jumpTo);
 
-            $this->searchRepository->insert([
-                'id'       => 'faq_' . $faq['id'],
-                'type'     => 'faq',
-                'language' => $faq['language'] ?? '',
-                'title'    => strip_tags($faq['question']),
-                'body'     => strip_tags($faq['answer'] ?? ''),
-                'url'      => '/' . $pageAlias . '/' . ($faq['alias'] ?? '') . $suffix,
-                'badge'    => 'FAQ',
-            ]);
-            $count++;
+            $this->searchRepository->setMeta('last_index_faq', date('Y-m-d H:i:s'));
+            $this->searchRepository->commit();
+        } catch (\Throwable $e) {
+            $this->searchRepository->rollback();
+            throw $e;
         }
-
-        $this->searchRepository->setMeta('last_index_faq', date('Y-m-d H:i:s'));
 
         return $count;
     }

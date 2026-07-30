@@ -8,12 +8,15 @@ use Contao\CoreBundle\Controller\FrontendModule\AbstractFrontendModuleController
 use Contao\CoreBundle\DependencyInjection\Attribute\AsFrontendModule;
 use Contao\CoreBundle\Twig\FragmentTemplate;
 use Contao\ModuleModel;
+use Doctrine\DBAL\Connection;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 #[AsFrontendModule(type: 'guc_search', category: 'search', template: 'frontend_module/guc_search')]
 class SearchModuleController extends AbstractFrontendModuleController
 {
+    public function __construct(private readonly Connection $db) {}
+
     protected function getResponse(FragmentTemplate $template, ModuleModel $model, Request $request): Response
     {
         $page = $request->attributes->get('pageModel');
@@ -43,11 +46,11 @@ class SearchModuleController extends AbstractFrontendModuleController
         if (\in_array('_categories', $rawTypes, true)) {
             $rawTypes = array_filter($rawTypes, static fn(string $t) => $t !== '_categories');
             try {
-                $result = \Contao\Database::getInstance()->execute(
-                    "SELECT alias FROM tl_guc_category WHERE active='1'"
+                $rows = $this->db->fetchAllAssociative(
+                    "SELECT alias FROM tl_guc_category WHERE active = '1' ORDER BY title"
                 );
-                while ($result->next()) {
-                    $rawTypes[] = $result->alias;
+                foreach ($rows as $row) {
+                    $rawTypes[] = $row['alias'];
                 }
             } catch (\Throwable) {}
             $rawTypes = array_values(array_unique($rawTypes));

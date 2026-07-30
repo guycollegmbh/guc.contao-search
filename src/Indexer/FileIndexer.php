@@ -23,9 +23,6 @@ class FileIndexer implements IndexerInterface
 
     public function index(): int
     {
-        $this->searchRepository->clearType('file');
-        $count = 0;
-
         $placeholders = implode(',', array_fill(0, count($this->allowedExtensions), '?'));
 
         $files = $this->db->fetchAllAssociative(
@@ -33,24 +30,34 @@ class FileIndexer implements IndexerInterface
             $this->allowedExtensions
         );
 
-        foreach ($files as $file) {
-            $meta = !empty($file['meta']) ? (unserialize($file['meta'], ['allowed_classes' => false]) ?: []) : [];
-            $title = $this->extractMetaTitle($meta, $file['name']);
-            $body = $this->extractMetaDescription($meta);
+        $count = 0;
+        $this->searchRepository->beginTransaction();
+        try {
+            $this->searchRepository->clearType('file');
 
-            $this->searchRepository->insert([
-                'id'       => 'file_' . $file['id'],
-                'type'     => 'file',
-                'language' => '',
-                'title'    => $title,
-                'body'     => $body,
-                'url'      => '/' . $file['path'],
-                'badge'    => strtoupper(pathinfo($file['path'], PATHINFO_EXTENSION)),
-            ]);
-            $count++;
+            foreach ($files as $file) {
+                $meta = !empty($file['meta']) ? (unserialize($file['meta'], ['allowed_classes' => false]) ?: []) : [];
+                $title = $this->extractMetaTitle($meta, $file['name']);
+                $body = $this->extractMetaDescription($meta);
+
+                $this->searchRepository->insert([
+                    'id'       => 'file_' . $file['id'],
+                    'type'     => 'file',
+                    'language' => '',
+                    'title'    => $title,
+                    'body'     => $body,
+                    'url'      => '/' . $file['path'],
+                    'badge'    => strtoupper(pathinfo($file['path'], PATHINFO_EXTENSION)),
+                ]);
+                $count++;
+            }
+
+            $this->searchRepository->setMeta('last_index_file', date('Y-m-d H:i:s'));
+            $this->searchRepository->commit();
+        } catch (\Throwable $e) {
+            $this->searchRepository->rollback();
+            throw $e;
         }
-
-        $this->searchRepository->setMeta('last_index_file', date('Y-m-d H:i:s'));
 
         return $count;
     }
