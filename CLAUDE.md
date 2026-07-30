@@ -21,7 +21,7 @@ Paketname: `guc/search-bundle`, Namespace: `Guc\SearchBundle`.
 # Suchindex komplett aufbauen
 php bin/console guc:search:index
 
-# Nur einen Typ indexieren (page, file, news, event, custom)
+# Nur einen Typ indexieren (page, file, news, event, member, faq)
 php bin/console guc:search:index --type=news
 ```
 
@@ -38,7 +38,6 @@ Services werden mit Tag `guc.search.indexer` registriert.
 | `NewsIndexer` | `news` | `tl_news` + `tl_news_archive` |
 | `EventIndexer` | `event` | `tl_calendar_events` + `tl_calendar` |
 | `FileIndexer` | `file` | `tl_files` (pdf, doc, docx, xls, xlsx, ppt, pptx) |
-| `CustomTableIndexer` | `custom` | Konfigurierbar via `tl_search_config` (Backend) |
 
 #### PageIndexer — Kategorie-Logik
 
@@ -92,7 +91,7 @@ Wichtige Methoden:
 
 `SearchApiController` lädt aktive Kategorien aus `tl_guc_category` (via Doctrine DBAL),
 um `allowedTypes` und `badgeLabels` dynamisch zu befüllen. Kategorie-Aliases werden
-dabei den fixen Typen (`page`, `file`, `news`, `event`, `member`, `faq`, `custom`)
+dabei den fixen Typen (`page`, `file`, `news`, `event`, `member`, `faq`)
 vorangestellt, damit sie in der gruppierten Antwort zuerst erscheinen.
 
 ### API-Response-Format

@@ -10,7 +10,7 @@
     {% endif %}
 
     {% set staleTypes = [] %}
-    {% for type in ['page', 'file', 'news', 'event', 'member', 'faq', 'custom'] %}
+    {% for type in indexerTypes %}
         {% if lastIndexed[type] is not null and (stats[type] ?? 0) > 0 %}
             {% if ("now"|date('U') - lastIndexed[type]|date('U')) > 86400 %}
                 {% set staleTypes = staleTypes|merge([type]) %}
@@ -37,18 +37,27 @@
             </tr>
         </thead>
         <tbody>
-            {% for type in ['page', 'file', 'news', 'event', 'member', 'faq', 'custom'] %}
+            {% for type, count in stats %}
+            {% set isIndexer = type in indexerTypes %}
             {% set isStale = type in staleTypes %}
             <tr class="{{ loop.index is odd ? 'odd' : 'even' }}">
-                <td><strong>{{ type|capitalize }}</strong>{% if isStale %} <span style="color:#cc0000">⚠</span>{% endif %}</td>
-                <td>{{ stats[type] ?? 0 }}</td>
+                <td>
+                    <strong>{{ type|capitalize }}</strong>
+                    {% if isStale %} <span style="color:#cc0000">⚠</span>{% endif %}
+                    {% if not isIndexer %}<span style="color:#999; font-size:11px"> (Kategorie)</span>{% endif %}
+                </td>
+                <td>{{ count }}</td>
                 <td style="{{ isStale ? 'color:#cc0000' : '' }}">{{ lastIndexed[type] ?? '—' }}</td>
                 <td>
+                    {% if isIndexer %}
                     <form method="post" style="display:inline" onsubmit="return confirm('Index für {{ type|e('js') }} neu aufbauen?')">
                         <input type="hidden" name="_token" value="{{ csrf_token('guc_search_reindex') }}">
                         <input type="hidden" name="reindex" value="{{ type|e }}">
                         <button type="submit" class="tl_submit">Neu indexieren</button>
                     </form>
+                    {% else %}
+                    <span style="color:#999; font-size:11px">via «Seiten» neu indexieren</span>
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}

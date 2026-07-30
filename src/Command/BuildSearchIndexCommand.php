@@ -27,7 +27,7 @@ class BuildSearchIndexCommand extends Command
 
     protected function configure(): void
     {
-        $this->addOption('type', 't', InputOption::VALUE_OPTIONAL, 'Only index a specific type (page, file, news, event, custom)');
+        $this->addOption('type', 't', InputOption::VALUE_OPTIONAL, 'Only index a specific type (page, file, news, event, member, faq)');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int

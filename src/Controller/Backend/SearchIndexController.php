@@ -17,8 +17,6 @@ use Twig\Environment;
 #[IsGranted('ROLE_ADMIN')]
 class SearchIndexController extends AbstractController
 {
-    private const ALLOWED_TYPES = ['all', 'page', 'file', 'news', 'event', 'member', 'faq', 'custom'];
-
     /** @param IndexerInterface[] $indexers */
     public function __construct(
         private readonly SearchRepository $searchRepository,
@@ -28,6 +26,13 @@ class SearchIndexController extends AbstractController
 
     public function __invoke(Request $request): Response
     {
+        // Build list of valid indexer types dynamically
+        $indexerTypes = [];
+        foreach ($this->indexers as $indexer) {
+            $indexerTypes[] = $indexer->getType();
+        }
+        $allowedTypes = array_merge(['all'], $indexerTypes);
+
         $message = null;
 
         if ($request->isMethod('POST')) {
@@ -36,7 +41,7 @@ class SearchIndexController extends AbstractController
             }
 
             $reindexType = $request->request->get('reindex', '');
-            if (\in_array($reindexType, self::ALLOWED_TYPES, true)) {
+            if (\in_array($reindexType, $allowedTypes, true)) {
                 foreach ($this->indexers as $indexer) {
                     if ($reindexType === 'all' || $indexer->getType() === $reindexType) {
                         $indexer->index();
@@ -53,15 +58,16 @@ class SearchIndexController extends AbstractController
         $dbSize = file_exists($dbPath) ? round(filesize($dbPath) / 1024, 1) : 0;
 
         $lastIndexed = [];
-        foreach (['page', 'file', 'news', 'event', 'member', 'faq', 'custom'] as $type) {
+        foreach ($indexerTypes as $type) {
             $lastIndexed[$type] = $this->searchRepository->getMeta('last_index_' . $type);
         }
 
         return new Response($this->twig->render('@GucSearch/backend/search_index.html.twig', [
-            'stats'       => $stats,
-            'lastIndexed' => $lastIndexed,
-            'dbSize'      => $dbSize,
-            'message'     => $message,
+            'stats'        => $stats,
+            'indexerTypes' => $indexerTypes,
+            'lastIndexed'  => $lastIndexed,
+            'dbSize'       => $dbSize,
+            'message'      => $message,
         ]));
     }
 }
