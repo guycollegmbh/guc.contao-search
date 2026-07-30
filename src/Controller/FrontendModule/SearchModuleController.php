@@ -37,8 +37,11 @@ class SearchModuleController extends AbstractFrontendModuleController
         $template->set('minChars', $minChars);
         $template->set('debounce', 400);
         $template->set('placeholder', $GLOBALS['TL_LANG']['MSC']['guc_search_placeholder'] ?? 'Suchen…');
+        // Pass configured types directly — API validates against its own dynamic whitelist (incl. category aliases)
+        $rawTypes = \Contao\StringUtil::deserialize($model->guc_search_types, true);
+
         $template->set('resultsPageUrl', $resultsPageUrl);
-        // searchTypes intentionally not set — active categories control visibility via tl_guc_category
+        $template->set('searchTypes', implode(',', $rawTypes));
 
         return $template->getResponse();
     }
