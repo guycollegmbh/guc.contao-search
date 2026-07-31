@@ -1,18 +1,5 @@
 <div class="tl_listing_container">
 
-    {% set staleTypes = [] %}
-    {% for type in indexerTypes %}
-        {% if (stats[type] ?? 0) == 0 %}
-            {% set staleTypes = staleTypes|merge([type]) %}
-        {% elseif lastIndexed[type] is not null and ("now"|date('U') - lastIndexed[type]) > 86400 %}
-            {% set staleTypes = staleTypes|merge([type]) %}
-        {% endif %}
-    {% endfor %}
-
-    {% if staleTypes|length > 0 %}
-        <p class="tl_error">Index veraltet oder leer: <strong>{{ staleTypes|join(', ') }}</strong> — bitte <code>php bin/console guc:search:index</code> ausführen.</p>
-    {% endif %}
-
     <h2>Index-Status</h2>
     <table class="tl_listing">
         <thead>
@@ -24,16 +11,13 @@
         </thead>
         <tbody>
             {% for type, count in stats %}
-            {% set isIndexer = type in indexerTypes %}
-            {% set isStale = type in staleTypes %}
             <tr class="{{ loop.index is odd ? 'odd' : 'even' }}">
                 <td>
                     <strong>{{ type|capitalize }}</strong>
-                    {% if not isIndexer %}<span style="color:#999; font-size:11px"> (Kategorie)</span>{% endif %}
-                    {% if isStale %} <span style="color:#cc0000">⚠</span>{% endif %}
+                    {% if type not in indexerTypes %}<span style="color:#999; font-size:11px"> (Kategorie)</span>{% endif %}
                 </td>
                 <td>{{ count }}</td>
-                <td style="{{ isStale ? 'color:#cc0000' : '' }}">
+                <td>
                     {% if lastIndexed[type] is defined and lastIndexed[type] is not null %}
                         {{ lastIndexed[type]|date('d.m.Y H:i') }}
                     {% else %}
