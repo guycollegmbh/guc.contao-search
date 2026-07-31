@@ -20,6 +20,8 @@
                 <td>
                     {% if lastIndexed[type] is defined and lastIndexed[type] is not null %}
                         {{ lastIndexed[type]|date('d.m.Y H:i') }}
+                    {% elseif type not in indexerTypes and lastIndexed['page'] is defined and lastIndexed['page'] is not null %}
+                        {{ lastIndexed['page']|date('d.m.Y H:i') }}
                     {% else %}
                         —
                     {% endif %}
