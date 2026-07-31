@@ -108,6 +108,10 @@ Direkte PDO-Verbindung zu `var/search.db`.
 FTS5-Tabelle: `search_index` mit Feldern `id, type, language, title, body, url, badge, updated`.
 Meta-Tabelle: `search_meta` (key/value, z.B. `last_index_page`).
 
+SQLite-Verbindung setzt `PRAGMA busy_timeout=5000` — bei konkurrierenden Schreibzugriffen
+(z.B. Cron + manueller Trigger gleichzeitig) wartet SQLite bis zu 5 Sekunden
+statt sofort mit `SQLITE_BUSY` (error 5) zu scheitern.
+
 Wichtige Methoden:
 
 | Methode | Zweck |
@@ -136,7 +140,7 @@ Triggert automatische Neuindexierung bei Backend-Änderungen:
 |---|---|
 | `SearchApiController` | `GET /api/search` — JSON-API, Query-Params: `q`, `lang`, `type`, `page`, `types` |
 | `SearchModuleController` | Fragment — Contao Frontend-Modul (`guc_search`), nutzt Doctrine DBAL |
-| `Backend\SearchIndexModule` | BE_MOD-Callback — Index-Status und Neuindexierung im Backend |
+| `Backend\SearchIndexModule` | BE_MOD-Callback — reine Index-Statusanzeige im Backend |
 
 `SearchApiController` lädt aktive Kategorien aus `tl_guc_category` (via Doctrine DBAL),
 um `allowedTypes`, `badgeLabels`, `categoryColors` und `categoryLightText` dynamisch zu befüllen.
@@ -146,6 +150,11 @@ Kategorie-Aliases werden den fixen Typen vorangestellt, damit sie zuerst erschei
 Contao instanziiert sie via `System::importStatic()` (DI-fähig in Contao 5) und ruft `generate()` auf.
 Das zurückgegebene HTML wird von Contao's `BackendController` in das vollständige Backend-Layout eingebettet.
 Das Template (`search_index.html.twig`) enthält daher kein `extends` mehr.
+
+Abhängigkeiten werden in `generate()` via `System::getContainer()->get()` geholt (nicht via
+Konstruktor-Injection), da Contao in manchen Pfaden `new SearchIndexModule()` direkt aufruft.
+`IndexerRegistry` ist ein öffentlicher Service, der den tagged Iterator `guc.search.indexer`
+kapselt und so per `$container->get(IndexerRegistry::class)` abrufbar ist.
 
 ### API-Response-Format
 
@@ -225,13 +234,14 @@ src/
     FaqIndexer.php
     FileIndexer.php
     IndexerInterface.php
+    IndexerRegistry.php                       Öffentlicher Service-Wrapper für den tagged Iterator
     MemberIndexer.php
     NewsIndexer.php
     PageIndexer.php
   Repository/SearchRepository.php
 
 contao/
-  config/config.php                         BE_MOD: guc_search_index (Route) + guc_search_categories (DCA)
+  config/config.php                         BE_MOD: guc_search_index (callback) + guc_search_categories (DCA)
   dca/tl_article.php                        Erweiterung: Feld guc_categories (checkboxWizard)
   dca/tl_guc_category.php                  DCA für Kategorieverwaltung
   dca/tl_module.php                         Felder: guc_search_min_chars, guc_search_types, guc_search_resultsPage
@@ -255,7 +265,7 @@ Das Backend-Modul wird unter einer eigenen Gruppe "Erweiterte Suche" angezeigt:
 
 | Modul | Tabelle / Callback | Zweck |
 |---|---|---|
-| Suchindex | `SearchIndexModule::generate()` | Index-Status, manuelle Neuindexierung |
+| Suchindex | `SearchIndexModule::generate()` | Reine Statusanzeige: Einträge pro Typ, letzter Indexierungszeitpunkt, DB-Grösse |
 | Kategorien | `tl_guc_category` | Manuelle Suchkategorien anlegen/bearbeiten |
 
 Nach dem Anlegen/Ändern von Kategorien muss der Suchindex neu aufgebaut werden:
