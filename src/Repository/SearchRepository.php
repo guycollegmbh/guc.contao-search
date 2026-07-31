@@ -20,6 +20,7 @@ class SearchRepository
         $this->pdo = new \PDO('sqlite:' . $this->dbPath);
         $this->pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
         $this->pdo->exec("PRAGMA journal_mode=WAL");
+        $this->pdo->exec("PRAGMA busy_timeout=5000");
         $this->pdo->exec("PRAGMA synchronous=NORMAL");
         $this->pdo->exec("PRAGMA cache_size=-10000");
         $this->createTables();

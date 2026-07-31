@@ -7,16 +7,10 @@ namespace Guc\SearchBundle\Backend;
 use Contao\System;
 use Guc\SearchBundle\Indexer\IndexerRegistry;
 use Guc\SearchBundle\Repository\SearchRepository;
-use Symfony\Component\Security\Csrf\CsrfToken;
-use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
-use Twig\Environment;
 
 /**
  * Contao backend module callback — registered via BE_MOD['erweiterte_suche']['guc_search_index'].
- *
- * Contao calls generate() either via System::importStatic() (DI-aware) or via new() fallback.
- * To be safe in both cases, dependencies are pulled from the container inside generate()
- * instead of via constructor injection.
+ * Read-only status page; re-indexing happens automatically via SearchIndexListener and cron.
  */
 class SearchIndexModule
 {
@@ -30,43 +24,11 @@ class SearchIndexModule
         /** @var IndexerRegistry $indexers */
         $indexers = $container->get(IndexerRegistry::class);
 
-        /** @var Environment $twig */
         $twig = $container->get('twig');
-
-        /** @var CsrfTokenManagerInterface $csrf */
-        $csrf = $container->get(CsrfTokenManagerInterface::class);
-
-        $request = $container->get('request_stack')->getCurrentRequest();
 
         $indexerTypes = [];
         foreach ($indexers as $indexer) {
             $indexerTypes[] = $indexer->getType();
-        }
-        $allowedTypes = array_merge(['all'], $indexerTypes);
-        $message = null;
-
-        if ($request?->isMethod('POST')) {
-            $token = new CsrfToken('guc_search_reindex', (string) $request->request->get('_token', ''));
-            if ($csrf->isTokenValid($token)) {
-                $reindexType = (string) $request->request->get('reindex', '');
-                if (\in_array($reindexType, $allowedTypes, true)) {
-                    $errors = [];
-                    foreach ($indexers as $indexer) {
-                        if ($reindexType === 'all' || $indexer->getType() === $reindexType) {
-                            try {
-                                $indexer->index();
-                            } catch (\Throwable $e) {
-                                $errors[] = sprintf('"%s": %s', $indexer->getType(), $e->getMessage());
-                            }
-                        }
-                    }
-                    $message = !empty($errors)
-                        ? 'Fehler beim Indexieren: ' . implode('; ', $errors)
-                        : ($reindexType === 'all'
-                            ? 'Gesamter Index wurde neu aufgebaut.'
-                            : sprintf('Index für "%s" wurde neu aufgebaut.', $reindexType));
-                }
-            }
         }
 
         $stats   = $repo->getStats();
@@ -83,7 +45,6 @@ class SearchIndexModule
             'indexerTypes' => $indexerTypes,
             'lastIndexed'  => $lastIndexed,
             'dbSize'       => $dbSize,
-            'message'      => $message,
         ]);
     }
 }

@@ -33,11 +33,6 @@ services:
     Guc\SearchBundle\Indexer\FaqIndexer:
         tags: ['guc.search.indexer']
 
-    # SearchIndexModule pulls deps via System::getContainer()->get() — requires public aliases
-    Symfony\Component\Security\Csrf\CsrfTokenManagerInterface:
-        public: true
-        alias: security.csrf.token_manager
-
     # Public wrapper so SearchIndexModule can fetch indexers via System::getContainer()->get()
     Guc\SearchBundle\Indexer\IndexerRegistry:
         public: true
