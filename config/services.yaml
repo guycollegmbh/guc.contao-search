@@ -46,6 +46,7 @@ services:
     Guc\SearchBundle\Command\BuildSearchIndexCommand:
         arguments:
             $indexers: !tagged_iterator guc.search.indexer
+            $searchRepository: '@Guc\SearchBundle\Repository\SearchRepository'
         tags: ['console.command']
 
     Guc\SearchBundle\Controller\SearchApiController:

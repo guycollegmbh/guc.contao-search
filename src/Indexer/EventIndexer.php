@@ -81,6 +81,7 @@ class EventIndexer implements IndexerInterface
         }
 
         $count = 0;
+        $allText = [];
         $this->searchRepository->beginTransaction();
         try {
             $this->searchRepository->clearType('event');
@@ -99,19 +100,23 @@ class EventIndexer implements IndexerInterface
                 $jumpTo = (int) $event['jumpTo'];
                 $pageAlias = $pageMap[$jumpTo]['alias'] ?? 'events';
                 $suffix = $resolveSuffix($jumpTo);
+                $title = strip_tags($event['title']);
+                $bodyClean = trim($body);
 
                 $this->searchRepository->insert([
                     'id'       => 'event_' . $event['id'],
                     'type'     => 'event',
                     'language' => $event['language'] ?? '',
-                    'title'    => strip_tags($event['title']),
-                    'body'     => trim($body),
+                    'title'    => $title,
+                    'body'     => $bodyClean,
                     'url'      => '/' . $pageAlias . '/' . $event['alias'] . $suffix,
                     'badge'    => 'Events',
                 ]);
                 $count++;
+                $allText[] = $title . ' ' . $bodyClean;
             }
 
+            $this->searchRepository->upsertWords(SearchRepository::extractWords(implode(' ', $allText)));
             $this->searchRepository->setMeta('last_index_event', date('Y-m-d H:i:s'));
             $this->searchRepository->commit();
         } catch (\Throwable $e) {

@@ -31,6 +31,7 @@ class FileIndexer implements IndexerInterface
         );
 
         $count = 0;
+        $allText = [];
         $this->searchRepository->beginTransaction();
         try {
             $this->searchRepository->clearType('file');
@@ -50,8 +51,10 @@ class FileIndexer implements IndexerInterface
                     'badge'    => strtoupper(pathinfo($file['path'], PATHINFO_EXTENSION)),
                 ]);
                 $count++;
+                $allText[] = $title . ' ' . $body;
             }
 
+            $this->searchRepository->upsertWords(SearchRepository::extractWords(implode(' ', $allText)));
             $this->searchRepository->setMeta('last_index_file', date('Y-m-d H:i:s'));
             $this->searchRepository->commit();
         } catch (\Throwable $e) {

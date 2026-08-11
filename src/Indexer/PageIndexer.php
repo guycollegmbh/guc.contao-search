@@ -139,6 +139,7 @@ class PageIndexer implements IndexerInterface
         try {
             // Clear ALL page-related entries (type may now be a category alias, not just 'page')
             $this->searchRepository->clearByIdPrefix('page_');
+            $allText = [];
 
             foreach ($pages as $page) {
                 $pageId   = (int) $page['id'];
@@ -163,6 +164,8 @@ class PageIndexer implements IndexerInterface
 
                 $pageCats = $pageCategories[$pageId] ?? [];
 
+                $bodyClean = trim($body);
+
                 if (empty($pageCats)) {
                     // No categories assigned — index as generic page
                     $this->searchRepository->insert([
@@ -170,11 +173,12 @@ class PageIndexer implements IndexerInterface
                         'type'     => 'page',
                         'language' => $language,
                         'title'    => $title,
-                        'body'     => trim($body),
+                        'body'     => $bodyClean,
                         'url'      => $url,
                         'badge'    => 'Seite',
                     ]);
                     $count++;
+                    $allText[] = $title . ' ' . $bodyClean;
                     continue;
                 }
 
@@ -186,14 +190,16 @@ class PageIndexer implements IndexerInterface
                         'type'     => $cat['alias'],
                         'language' => $language,
                         'title'    => $title,
-                        'body'     => trim($body),
+                        'body'     => $bodyClean,
                         'url'      => $url,
                         'badge'    => $cat['title'],
                     ]);
                     $count++;
                 }
+                $allText[] = $title . ' ' . $bodyClean;
             }
 
+            $this->searchRepository->upsertWords(SearchRepository::extractWords(implode(' ', $allText)));
             $this->searchRepository->setMeta('last_index_page', date('Y-m-d H:i:s'));
             $this->searchRepository->commit();
         } catch (\Throwable $e) {

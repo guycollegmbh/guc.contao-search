@@ -81,6 +81,7 @@ class NewsIndexer implements IndexerInterface
         }
 
         $count = 0;
+        $allText = [];
         $this->searchRepository->beginTransaction();
         try {
             $this->searchRepository->clearType('news');
@@ -99,19 +100,23 @@ class NewsIndexer implements IndexerInterface
                 $jumpTo = (int) $item['jumpTo'];
                 $pageAlias = $pageMap[$jumpTo]['alias'] ?? 'news';
                 $suffix = $resolveSuffix($jumpTo);
+                $title = strip_tags($item['headline']);
+                $bodyClean = trim($body);
 
                 $this->searchRepository->insert([
                     'id'       => 'news_' . $item['id'],
                     'type'     => 'news',
                     'language' => $item['language'] ?? '',
-                    'title'    => strip_tags($item['headline']),
-                    'body'     => trim($body),
+                    'title'    => $title,
+                    'body'     => $bodyClean,
                     'url'      => '/' . $pageAlias . '/' . $item['alias'] . $suffix,
                     'badge'    => 'News',
                 ]);
                 $count++;
+                $allText[] = $title . ' ' . $bodyClean;
             }
 
+            $this->searchRepository->upsertWords(SearchRepository::extractWords(implode(' ', $allText)));
             $this->searchRepository->setMeta('last_index_news', date('Y-m-d H:i:s'));
             $this->searchRepository->commit();
         } catch (\Throwable $e) {

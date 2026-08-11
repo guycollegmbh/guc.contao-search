@@ -66,6 +66,7 @@ class FaqIndexer implements IndexerInterface
         };
 
         $count = 0;
+        $allText = [];
         $this->searchRepository->beginTransaction();
         try {
             $this->searchRepository->clearType('faq');
@@ -78,19 +79,23 @@ class FaqIndexer implements IndexerInterface
                 }
                 $pageAlias = $pageMap[$jumpTo]['alias'] ?? 'faq';
                 $suffix = $resolveSuffix($jumpTo);
+                $title = strip_tags($faq['question']);
+                $body = strip_tags($faq['answer'] ?? '');
 
                 $this->searchRepository->insert([
                     'id'       => 'faq_' . $faq['id'],
                     'type'     => 'faq',
                     'language' => $faq['language'] ?? '',
-                    'title'    => strip_tags($faq['question']),
-                    'body'     => strip_tags($faq['answer'] ?? ''),
+                    'title'    => $title,
+                    'body'     => $body,
                     'url'      => '/' . $pageAlias . '/' . ($faq['alias'] ?? '') . $suffix,
                     'badge'    => 'FAQ',
                 ]);
                 $count++;
+                $allText[] = $title . ' ' . $body;
             }
 
+            $this->searchRepository->upsertWords(SearchRepository::extractWords(implode(' ', $allText)));
             $this->searchRepository->setMeta('last_index_faq', date('Y-m-d H:i:s'));
             $this->searchRepository->commit();
         } catch (\Throwable $e) {

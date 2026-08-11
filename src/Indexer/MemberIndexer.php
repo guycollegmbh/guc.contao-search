@@ -90,6 +90,7 @@ class MemberIndexer implements IndexerInterface
         $suffix = $memberPageId ? $resolveSuffix($memberPageId) : '';
 
         $count = 0;
+        $allText = [];
         $this->searchRepository->beginTransaction();
         try {
             $this->searchRepository->clearType('member');
@@ -99,19 +100,22 @@ class MemberIndexer implements IndexerInterface
                 if (empty($title)) {
                     continue;
                 }
+                $body = strip_tags($member['company'] ?? '');
 
                 $this->searchRepository->insert([
                     'id'       => 'member_' . $member['id'],
                     'type'     => 'member',
                     'language' => $language,
                     'title'    => $title,
-                    'body'     => strip_tags($member['company'] ?? ''),
+                    'body'     => $body,
                     'url'      => '/' . $memberPageAlias . $suffix,
                     'badge'    => 'Team',
                 ]);
                 $count++;
+                $allText[] = $title . ' ' . $body;
             }
 
+            $this->searchRepository->upsertWords(SearchRepository::extractWords(implode(' ', $allText)));
             $this->searchRepository->setMeta('last_index_member', date('Y-m-d H:i:s'));
             $this->searchRepository->commit();
         } catch (\Throwable $e) {

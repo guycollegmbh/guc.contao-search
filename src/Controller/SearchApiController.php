@@ -92,20 +92,36 @@ class SearchApiController extends AbstractController
         }
 
         if ($type !== '') {
-            // C2: block single-type requests for types disabled by module config
+            // Block single-type requests for types disabled by module config
             if (!empty($enabledTypes) && !\in_array($type, $enabledTypes, true)) {
                 return $this->json(['results' => [], 'total' => 0, 'page' => 1, 'pages' => 0, 'query' => $query]);
             }
             $results = $this->searchRepository->searchByType($query, $type, $language, $perPage, $offset);
             $total   = $this->searchRepository->countByType($query, $type, $language);
 
-            return $this->json([
+            // Fuzzy fallback: if no results, try Levenshtein-expanded query
+            $fuzzy = null;
+            if ($total === 0) {
+                $fuzzy = $this->buildFuzzyFtsQuery($query);
+                if ($fuzzy !== null) {
+                    $results = $this->searchRepository->searchByTypeFts($fuzzy['ftsQuery'], $type, $language, $perPage, $offset);
+                    $total   = $this->searchRepository->countByTypeFts($fuzzy['ftsQuery'], $type, $language);
+                }
+            }
+
+            $response = [
                 'results' => array_map($this->formatResult(...), $results),
                 'total'   => $total,
                 'page'    => $page,
                 'pages'   => (int) ceil($total / $perPage),
                 'query'   => $query,
-            ]);
+            ];
+            if ($fuzzy !== null && $total > 0) {
+                $response['fuzzy']      = true;
+                $response['suggestion'] = $fuzzy['suggestion'];
+            }
+
+            return $this->json($response);
         }
 
         // Build the full type list for grouped search:
@@ -117,13 +133,32 @@ class SearchApiController extends AbstractController
 
         try {
             $grouped = $this->searchRepository->searchGrouped($query, $language, $perPage, $activeTypes);
-            // C8: single COUNT query instead of one countByType() call per type
             $counts  = $this->searchRepository->countGrouped($query, $language, $activeTypes);
         } catch (\Throwable $e) {
             return $this->json(['grouped' => [], 'query' => $query, 'error' => 'search_failed']);
         }
 
+        // Fuzzy fallback: if no results across all groups, try Levenshtein-expanded query
+        $fuzzy = null;
+        if (empty($grouped)) {
+            $fuzzy = $this->buildFuzzyFtsQuery($query);
+            if ($fuzzy !== null) {
+                try {
+                    $grouped = $this->searchRepository->searchGroupedFts($fuzzy['ftsQuery'], $language, $perPage, $activeTypes);
+                    $counts  = $this->searchRepository->countGroupedFts($fuzzy['ftsQuery'], $language, $activeTypes);
+                } catch (\Throwable) {
+                    $grouped = [];
+                    $counts  = [];
+                    $fuzzy   = null;
+                }
+            }
+        }
+
         $response = ['grouped' => [], 'query' => $query];
+        if ($fuzzy !== null && !empty($grouped)) {
+            $response['fuzzy']      = true;
+            $response['suggestion'] = $fuzzy['suggestion'];
+        }
 
         foreach ($grouped as $groupType => $results) {
             $total = $counts[$groupType] ?? count($results);
@@ -147,6 +182,74 @@ class SearchApiController extends AbstractController
         $jsonResponse->setPrivate()->setMaxAge(30);
 
         return $jsonResponse;
+    }
+
+    /**
+     * Builds a fuzzy FTS5 query by expanding each query word with Levenshtein-close
+     * dictionary words. Only triggers when the word dictionary is populated.
+     *
+     * Returns null if no expansion is possible (empty dictionary or no close matches).
+     * Returns ['ftsQuery' => string, 'suggestion' => string] on success.
+     *
+     * Max edit distance: 1 for words 4–6 chars, 2 for 7+ chars.
+     * Words shorter than 4 chars are passed through unchanged (too many false positives).
+     */
+    private function buildFuzzyFtsQuery(string $query): ?array
+    {
+        $allWords = $this->searchRepository->getAllWords();
+        if (empty($allWords)) {
+            return null;
+        }
+
+        $words = preg_split('/\s+/u', trim($query), -1, PREG_SPLIT_NO_EMPTY);
+        $expandedParts = [];
+        $correctedWords = [];
+        $anyExpanded = false;
+
+        foreach ($words as $word) {
+            $lower   = mb_strtolower($word);
+            $len     = mb_strlen($lower);
+            $maxDist = $len <= 6 ? 1 : 2;
+
+            if ($len < 4) {
+                $expandedParts[]  = $word;
+                $correctedWords[] = $word;
+                continue;
+            }
+
+            $candidates  = [$word];
+            $bestWord    = $word;
+            $bestDist    = PHP_INT_MAX;
+
+            foreach ($allWords as $dictWord) {
+                $dist = levenshtein($lower, $dictWord);
+                if ($dist > 0 && $dist <= $maxDist) {
+                    $candidates[] = $dictWord;
+                    if ($dist < $bestDist) {
+                        $bestDist = $dist;
+                        $bestWord = $dictWord;
+                    }
+                }
+            }
+
+            if (count($candidates) > 1) {
+                $anyExpanded      = true;
+                $expandedParts[]  = '(' . implode(' OR ', $candidates) . ')';
+                $correctedWords[] = $bestWord;
+            } else {
+                $expandedParts[]  = $word;
+                $correctedWords[] = $word;
+            }
+        }
+
+        if (!$anyExpanded) {
+            return null;
+        }
+
+        return [
+            'ftsQuery'   => implode(' ', $expandedParts),
+            'suggestion' => implode(' ', $correctedWords),
+        ];
     }
 
     private function formatResult(array $row): array

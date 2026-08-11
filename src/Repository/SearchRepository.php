@@ -35,7 +35,7 @@ class SearchRepository
             )
         ");
 
-        // Schema v1: prefix='2 3 4' for faster prefix queries; rebuild required
+        // Schema v1: prefix='2 3 4' for faster prefix queries; rebuild required on upgrade
         $version = (int) $this->pdo->query("PRAGMA user_version")->fetchColumn();
         if ($version < 1) {
             $this->pdo->exec("DROP TABLE IF EXISTS search_index");
@@ -53,6 +53,14 @@ class SearchRepository
                 updated UNINDEXED,
                 tokenize='unicode61',
                 prefix='2 3 4'
+            )
+        ");
+
+        // Word dictionary for fuzzy search fallback
+        $this->pdo->exec("
+            CREATE TABLE IF NOT EXISTS search_words (
+                word TEXT NOT NULL PRIMARY KEY,
+                frequency INTEGER NOT NULL DEFAULT 1
             )
         ");
 
@@ -80,34 +88,136 @@ class SearchRepository
         }
     }
 
+    // --- Word dictionary (fuzzy search) ---
+
+    /**
+     * Extracts indexable words (≥4 Unicode letters) from plain or HTML text.
+     * Used by indexers to populate the word dictionary.
+     */
+    public static function extractWords(string $text): array
+    {
+        $text = mb_strtolower(strip_tags($text));
+        preg_match_all('/\p{L}{4,}/u', $text, $matches);
+        return array_unique($matches[0]);
+    }
+
+    /**
+     * Inserts or increments frequency for each word.
+     * Call inside the indexer transaction so a failed index also rolls back word changes.
+     */
+    public function upsertWords(array $words): void
+    {
+        if (empty($words)) {
+            return;
+        }
+        $stmt = $this->pdo->prepare(
+            'INSERT INTO search_words (word, frequency) VALUES (:word, 1)
+             ON CONFLICT(word) DO UPDATE SET frequency = frequency + 1'
+        );
+        foreach ($words as $word) {
+            $stmt->execute([':word' => $word]);
+        }
+    }
+
+    /** Removes all words — call before a full index rebuild so stale words are cleaned up. */
+    public function clearWords(): void
+    {
+        $this->pdo->exec('DELETE FROM search_words');
+    }
+
+    /** Returns all words ordered by frequency descending — used for Levenshtein comparison. */
+    public function getAllWords(): array
+    {
+        return $this->pdo->query('SELECT word FROM search_words ORDER BY frequency DESC')
+            ->fetchAll(\PDO::FETCH_COLUMN);
+    }
+
+    /** Returns words starting with $prefix ordered by frequency — used for autocomplete suggestions. */
+    public function getSuggestions(string $prefix, int $limit = 8): array
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT word FROM search_words WHERE word LIKE :prefix ORDER BY frequency DESC LIMIT :limit'
+        );
+        $stmt->bindValue(':prefix', $prefix . '%');
+        $stmt->bindValue(':limit', $limit, \PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll(\PDO::FETCH_COLUMN);
+    }
+
     // --- Search ---
 
     public function searchGrouped(string $query, string $language = '', int $perGroup = 10, array $enabledTypes = []): array
     {
-        $types = empty($enabledTypes)
-            ? $this->getDistinctTypes()
-            : $enabledTypes;
-        $groups = [];
+        $clean = $this->sanitizeQuery($query);
+        if (empty($clean)) {
+            return [];
+        }
+        return $this->searchGroupedFts($clean . '*', $language, $perGroup, $enabledTypes);
+    }
 
+    /** Same as searchGrouped but accepts a pre-built FTS5 query — used for fuzzy expansion. */
+    public function searchGroupedFts(string $ftsQuery, string $language = '', int $perGroup = 10, array $enabledTypes = []): array
+    {
+        $types = empty($enabledTypes) ? $this->getDistinctTypes() : $enabledTypes;
+        $groups = [];
         foreach ($types as $type) {
-            $results = $this->searchByType($query, $type, $language, $perGroup);
+            $results = $this->runSearch($ftsQuery, $type, $language, $perGroup, 0);
             if (!empty($results)) {
                 $groups[$type] = $results;
             }
         }
-
         return $groups;
     }
 
     public function searchByType(string $query, string $type, string $language = '', int $limit = 10, int $offset = 0): array
     {
-        $query = $this->sanitizeQuery($query);
-        if (empty($query)) {
+        $clean = $this->sanitizeQuery($query);
+        if (empty($clean)) {
             return [];
         }
+        return $this->runSearch($clean . '*', $type, $language, $limit, $offset);
+    }
 
-        $ftsQuery = $query . '*';
+    /** Same as searchByType but accepts a pre-built FTS5 query — used for fuzzy expansion. */
+    public function searchByTypeFts(string $ftsQuery, string $type, string $language = '', int $limit = 10, int $offset = 0): array
+    {
+        return $this->runSearch($ftsQuery, $type, $language, $limit, $offset);
+    }
 
+    public function countByType(string $query, string $type, string $language = ''): int
+    {
+        $clean = $this->sanitizeQuery($query);
+        if (empty($clean)) {
+            return 0;
+        }
+        return $this->runCount($clean . '*', $type, $language);
+    }
+
+    /** Same as countByType but accepts a pre-built FTS5 query — used for fuzzy expansion. */
+    public function countByTypeFts(string $ftsQuery, string $type, string $language = ''): int
+    {
+        return $this->runCount($ftsQuery, $type, $language);
+    }
+
+    public function countGrouped(string $query, string $language = '', array $enabledTypes = []): array
+    {
+        $clean = $this->sanitizeQuery($query);
+        if (empty($clean)) {
+            return [];
+        }
+        return $this->runCountGrouped($clean . '*', $language, $enabledTypes);
+    }
+
+    /** Same as countGrouped but accepts a pre-built FTS5 query — used for fuzzy expansion. */
+    public function countGroupedFts(string $ftsQuery, string $language = '', array $enabledTypes = []): array
+    {
+        return $this->runCountGrouped($ftsQuery, $language, $enabledTypes);
+    }
+
+    // --- Private SQL helpers ---
+
+    private function runSearch(string $ftsQuery, string $type, string $language, int $limit, int $offset): array
+    {
         $params = [':query' => $ftsQuery, ':type' => $type];
 
         if ($language !== '') {
@@ -147,15 +257,8 @@ class SearchRepository
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
-    public function countByType(string $query, string $type, string $language = ''): int
+    private function runCount(string $ftsQuery, string $type, string $language): int
     {
-        $query = $this->sanitizeQuery($query);
-        if (empty($query)) {
-            return 0;
-        }
-
-        $ftsQuery = $query . '*';
-
         $params = [':query' => $ftsQuery, ':type' => $type];
 
         if ($language !== '') {
@@ -171,14 +274,8 @@ class SearchRepository
         return (int) $stmt->fetchColumn();
     }
 
-    public function countGrouped(string $query, string $language = '', array $enabledTypes = []): array
+    private function runCountGrouped(string $ftsQuery, string $language, array $enabledTypes): array
     {
-        $query = $this->sanitizeQuery($query);
-        if (empty($query)) {
-            return [];
-        }
-
-        $ftsQuery = $query . '*';
         $params = [':query' => $ftsQuery];
         $conditions = ['search_index MATCH :query'];
 
@@ -233,12 +330,6 @@ class SearchRepository
             ->execute($rowids);
     }
 
-    private function getDistinctTypes(): array
-    {
-        $stmt = $this->pdo->query("SELECT DISTINCT type FROM search_index ORDER BY type");
-        return $stmt->fetchAll(\PDO::FETCH_COLUMN);
-    }
-
     public function insert(array $record): void
     {
         $stmt = $this->pdo->prepare("
@@ -260,7 +351,6 @@ class SearchRepository
     private function cleanText(string $text): string
     {
         $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        // Remove soft hyphens and other invisible format characters
         $text = preg_replace('/[\x{00AD}\x{200B}\x{FEFF}]/u', '', $text);
         return trim($text);
     }
@@ -294,9 +384,14 @@ class SearchRepository
         return $this->dbPath;
     }
 
+    private function getDistinctTypes(): array
+    {
+        $stmt = $this->pdo->query("SELECT DISTINCT type FROM search_index ORDER BY type");
+        return $stmt->fetchAll(\PDO::FETCH_COLUMN);
+    }
+
     private function sanitizeQuery(string $query): string
     {
-        // Remove FTS5 special characters that could break queries
         $query = preg_replace('/[^\p{L}\p{N}\s\-]/u', ' ', $query);
         return trim($query);
     }
