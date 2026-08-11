@@ -62,6 +62,24 @@ im Memoization-Array (`array_key_exists` statt `isset`). Zirkuläre `pid`-Verwei
 `NewsIndexer`, `EventIndexer` und `MemberIndexer` verwenden PHP `time()` als
 DBAL-Parameter (`:now`) statt MySQL-spezifischem `UNIX_TIMESTAMP()`.
 
+#### PageIndexer — Ausschluss-Logik
+
+Folgende Seiten werden **nicht** indexiert:
+
+| Bedingung | Contao-Feld | Bedeutung |
+|---|---|---|
+| Nicht veröffentlicht | `published != '1'` | Entwurf / deaktiviert |
+| Zugriffsgeschützt | `protected = '1'` | Seite erfordert Login |
+| Robots-Noindex | `robots LIKE '%noindex%'` | Suchmaschinen-Anweisung |
+| Aus Suche ausgeschlossen | `noSearch = '1'` | Backend-Checkbox "Aus der Suche ausschliessen" |
+
+**Nicht** als Ausschluss gewertet: `sitemap = 'map_never'` — das steuert nur die XML-Sitemap,
+nicht die Suche. Seiten können aus der Sitemap ausgenommen, aber trotzdem durchsuchbar sein.
+
+**Vererbter Schutz:** Nur Seiten mit `protected = '1'` direkt auf der Seite werden ausgeschlossen.
+Kindseiten die ihren Schutz von einer Elternseite erben (aber selbst `protected = '0'` haben)
+erscheinen weiterhin im Index — in diesem Fall `noSearch = '1'` auf der Kindseite setzen.
+
 #### PageIndexer — Kategorie-Logik
 
 Für jede indexierte Seite wird geprüft, ob deren Artikel (`tl_article`) Kategorien in
@@ -334,11 +352,14 @@ php bin/console contao:migrate
 ### Was das Bundle selbst absichert
 - API-Parameter (`q`, `type`, `lang`, `types`) werden validiert und auf dynamischer Whitelist geprüft
 - `type`-Whitelist = feste Typen + aktive Kategorie-Aliases aus `tl_guc_category`
-- FTS5-Query wird von Sonderzeichen bereinigt (`sanitizeQuery`)
+- FTS5-Query wird von Sonderzeichen bereinigt (`sanitizeQuery`); Fuzzy-Pfad sanitiert zusätzlich jeden Wortteil
 - API-Response gibt nur explizit erlaubte Felder zurück (`formatResult`)
 - Excerpt erlaubt serverseitig nur `<mark>`-Tags (`strip_tags($excerpt, '<mark>')`)
-- Backend-Route erfordert `ROLE_ADMIN` + CSRF-Token
+- `sanitizeUrl()` lässt nur root-relative Pfade durch — lehnt `javascript:`, `data:` und protokoll-relative `//host`-URLs ab
+- `getAllWords()` ist auf 10'000 Wörter limitiert (verhindert Memory-Erschöpfung)
+- Backend-Route erfordert Contao-Backend-Login (BE_MOD-System)
 - `unserialize()` mit `['allowed_classes' => false]`
+- Geschützte Seiten (`protected = '1'`) und `noSearch = '1'`-Seiten werden nicht indexiert
 
 ### Rate-Limiting — muss auf Anwendungsebene konfiguriert werden
 
