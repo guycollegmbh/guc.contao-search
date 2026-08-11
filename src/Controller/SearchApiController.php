@@ -277,9 +277,12 @@ class SearchApiController extends AbstractController
         return preg_replace('/<mark\b[^>]+>/i', '<mark>', strip_tags($html, '<mark>'));
     }
 
-    /** Ensures URLs are relative paths; rejects javascript: and other non-path schemes. */
+    /** Ensures URLs are root-relative paths; rejects javascript:, data:, and protocol-relative //host URLs. */
     private function sanitizeUrl(string $url): string
     {
-        return str_starts_with($url, '/') ? $url : '/';
+        if (!str_starts_with($url, '/') || str_starts_with($url, '//')) {
+            return '/';
+        }
+        return $url;
     }
 }

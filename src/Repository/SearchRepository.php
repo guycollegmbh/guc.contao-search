@@ -125,11 +125,13 @@ class SearchRepository
         $this->pdo->exec('DELETE FROM search_words');
     }
 
-    /** Returns all words ordered by frequency descending — used for Levenshtein comparison. */
-    public function getAllWords(): array
+    /** Returns the most frequent words — used for Levenshtein comparison in fuzzy fallback. */
+    public function getAllWords(int $limit = 10000): array
     {
-        return $this->pdo->query('SELECT word FROM search_words ORDER BY frequency DESC')
-            ->fetchAll(\PDO::FETCH_COLUMN);
+        $stmt = $this->pdo->prepare('SELECT word FROM search_words ORDER BY frequency DESC LIMIT :limit');
+        $stmt->bindValue(':limit', $limit, \PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll(\PDO::FETCH_COLUMN);
     }
 
     /** Returns words starting with $prefix ordered by frequency — used for autocomplete suggestions. */
