@@ -201,7 +201,13 @@ class SearchApiController extends AbstractController
             return null;
         }
 
-        $words = preg_split('/\s+/u', trim($query), -1, PREG_SPLIT_NO_EMPTY);
+        // Strip FTS5 special chars from each word so parenthesis grouping stays intact
+        $rawWords = preg_split('/\s+/u', trim($query), -1, PREG_SPLIT_NO_EMPTY);
+        $words = array_values(array_filter(array_map(
+            static fn(string $w) => trim(preg_replace('/[^\p{L}\p{N}\-]/u', '', $w)),
+            $rawWords
+        ), static fn(string $w) => $w !== ''));
+
         $expandedParts = [];
         $correctedWords = [];
         $anyExpanded = false;
