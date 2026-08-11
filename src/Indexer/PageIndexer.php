@@ -105,6 +105,7 @@ class PageIndexer implements IndexerInterface
             FROM tl_page
             WHERE published = '1'
             AND type = 'regular'
+            AND (protected IS NULL OR protected != '1')
             AND (robots IS NULL OR robots NOT LIKE '%noindex%')
             AND (noSearch IS NULL OR noSearch != '1')
             AND (sitemap IS NULL OR sitemap != 'map_never')
