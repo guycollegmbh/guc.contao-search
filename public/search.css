@@ -299,3 +299,59 @@
 @keyframes guc-search-spin {
     to { transform: rotate(360deg); }
 }
+
+/* ── Autocomplete suggestions ── */
+
+.guc-search__suggestions {
+    list-style: none;
+    margin: 0;
+    padding: 6px 0;
+}
+
+.guc-search .guc-search__suggestion {
+    appearance: none;
+    -webkit-appearance: none;
+    display: block;
+    width: 100%;
+    padding: 8px 16px;
+    border: none;
+    background: transparent;
+    font: inherit;
+    font-size: 0.925rem;
+    color: #212529;
+    text-align: left;
+    cursor: pointer;
+    line-height: normal;
+    outline: none;
+    transition: background 0.15s;
+}
+
+.guc-search .guc-search__suggestion:hover,
+.guc-search .guc-search__suggestion:focus {
+    background: #f8f9fa;
+    color: #212529;
+    border-color: transparent;
+    outline: none;
+}
+
+.guc-search__suggestion mark {
+    background: transparent;
+    color: #212529;
+    font-weight: 700;
+    padding: 0;
+}
+
+/* ── Fuzzy hint ("Keine Treffer für X — Ergebnisse für Y") ── */
+
+.guc-search__fuzzy-hint {
+    margin: 0;
+    padding: 8px 16px;
+    font-size: 0.82rem;
+    color: #6c757d;
+    border-bottom: 1px solid #f0f0f0;
+    background: #fffbf0;
+}
+
+.guc-search__fuzzy-hint strong {
+    color: #212529;
+}

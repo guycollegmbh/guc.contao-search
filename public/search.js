@@ -3,33 +3,44 @@
 
     function initSearch() {
         document.querySelectorAll('.guc-search').forEach(function (widget) {
-            const input = widget.querySelector('.guc-search__input');
-            const results = widget.querySelector('.guc-search__results');
-            const clearBtn = widget.querySelector('.guc-search__clear');
+            const input       = widget.querySelector('.guc-search__input');
+            const results     = widget.querySelector('.guc-search__results');
+            const clearBtn    = widget.querySelector('.guc-search__clear');
 
-            const apiUrl = widget.dataset.apiUrl || '/api/search';
-            const minChars = parseInt(widget.dataset.minChars || '2', 10);
-            const debounce = parseInt(widget.dataset.debounce || '400', 10);
-            const lang = widget.dataset.lang || '';
-            const resultsUrl = widget.dataset.resultsUrl || '';
+            const apiUrl      = widget.dataset.apiUrl || '/api/search';
+            const suggestUrl  = (widget.dataset.apiUrl || '/api/search').replace(/\/search$/, '/search/suggestions');
+            const minChars    = parseInt(widget.dataset.minChars || '2', 10);
+            const debounce    = parseInt(widget.dataset.debounce || '400', 10);
+            const lang        = widget.dataset.lang || '';
+            const resultsUrl  = widget.dataset.resultsUrl || '';
             const typesFilter = widget.dataset.types || '';
 
-            let timer = null;
-            let currentQuery = '';
-            let abortController = null;
+            let searchTimer    = null;
+            let suggestTimer   = null;
+            let currentQuery   = '';
+            let abortSearch    = null;
+            let abortSuggest   = null;
 
             input.addEventListener('input', function () {
-                const query = input.value.trim();
+                var query = input.value.trim();
                 clearBtn.hidden = query.length === 0;
 
-                clearTimeout(timer);
+                clearTimeout(searchTimer);
+                clearTimeout(suggestTimer);
 
                 if (query.length < minChars) {
                     hideResults();
                     return;
                 }
 
-                timer = setTimeout(function () {
+                // Suggestions: fast, 150 ms debounce
+                suggestTimer = setTimeout(function () {
+                    doSuggest(query);
+                }, 150);
+
+                // Full search: slower debounce
+                searchTimer = setTimeout(function () {
+                    clearTimeout(suggestTimer);
                     doSearch(query);
                 }, debounce);
             });
@@ -46,15 +57,14 @@
                     input.blur();
                 } else if (e.key === 'ArrowDown' && !results.hidden) {
                     e.preventDefault();
-                    var first = results.querySelector('.guc-search__link, .guc-search__more');
+                    var first = results.querySelector('.guc-search__suggestion, .guc-search__link, .guc-search__more');
                     if (first) first.focus();
                 }
             });
 
             results.addEventListener('keydown', function (e) {
-                var activePanel = results.querySelector('.guc-search__list:not([hidden])');
                 var focusable = Array.prototype.slice.call(
-                    (activePanel || results).querySelectorAll('.guc-search__link, .guc-search__more')
+                    results.querySelectorAll('.guc-search__suggestion, .guc-search__link, .guc-search__more')
                 );
                 var idx = focusable.indexOf(document.activeElement);
 
@@ -84,21 +94,78 @@
                 }
             });
 
+            // ── Autocomplete suggestions ──────────────────────────────────────
+
+            function doSuggest(query) {
+                if (abortSuggest) abortSuggest.abort();
+                abortSuggest = new AbortController();
+
+                var url = suggestUrl + '?q=' + encodeURIComponent(query);
+                fetch(url, { signal: abortSuggest.signal })
+                    .then(function (res) { return res.json(); })
+                    .then(function (data) {
+                        // Only show if still in "waiting for full results" phase
+                        if (input.value.trim() === query && currentQuery !== query) {
+                            renderSuggestions(data.suggestions || [], query);
+                        }
+                    })
+                    .catch(function () {});
+            }
+
+            function renderSuggestions(suggestions, query) {
+                if (suggestions.length === 0) return;
+
+                results.innerHTML = '';
+                var list = document.createElement('ul');
+                list.className = 'guc-search__suggestions';
+                list.setAttribute('role', 'listbox');
+                list.setAttribute('aria-label', 'Vorschläge');
+
+                suggestions.forEach(function (word) {
+                    var li = document.createElement('li');
+                    li.setAttribute('role', 'option');
+
+                    var btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'guc-search__suggestion';
+                    // Highlight matching prefix
+                    var match = word.substring(0, query.length);
+                    var rest  = word.substring(query.length);
+                    btn.innerHTML = '<mark>' + escText(match) + '</mark>' + escText(rest);
+
+                    btn.addEventListener('click', function () {
+                        input.value = word;
+                        clearBtn.hidden = false;
+                        clearTimeout(searchTimer);
+                        clearTimeout(suggestTimer);
+                        doSearch(word);
+                    });
+
+                    li.appendChild(btn);
+                    list.appendChild(li);
+                });
+
+                results.appendChild(list);
+                results.hidden = false;
+            }
+
+            // ── Full search ───────────────────────────────────────────────────
+
             function doSearch(query) {
                 if (query === currentQuery) return;
                 currentQuery = query;
 
-                if (abortController) {
-                    abortController.abort();
-                }
-                abortController = new AbortController();
+                if (abortSearch) abortSearch.abort();
+                abortSearch = new AbortController();
 
                 results.innerHTML = '<div class="guc-search__loading" role="status" aria-label="Suche läuft…"></div>';
                 results.hidden = false;
 
-                var url = apiUrl + '?q=' + encodeURIComponent(query) + (lang ? '&lang=' + lang : '') + (typesFilter ? '&types=' + encodeURIComponent(typesFilter) : '');
+                var url = apiUrl + '?q=' + encodeURIComponent(query)
+                    + (lang ? '&lang=' + lang : '')
+                    + (typesFilter ? '&types=' + encodeURIComponent(typesFilter) : '');
 
-                fetch(url, { signal: abortController.signal })
+                fetch(url, { signal: abortSearch.signal })
                     .then(function (res) {
                         if (!res.ok) throw new Error('HTTP ' + res.status);
                         return res.json();
@@ -106,7 +173,6 @@
                     .then(function (data) { renderResults(data, query); })
                     .catch(function (err) {
                         if (err.name !== 'AbortError') {
-                            console.error('GUC Search error:', err);
                             results.innerHTML = '<p class="guc-search__empty">Suche nicht verfügbar.</p>';
                             results.hidden = false;
                         }
@@ -122,6 +188,15 @@
                     return;
                 }
 
+                // "Meinten Sie X?" banner when fuzzy fallback was used
+                if (data.fuzzy && data.suggestion) {
+                    var hint = document.createElement('p');
+                    hint.className = 'guc-search__fuzzy-hint';
+                    hint.innerHTML = 'Keine Treffer für «' + escText(query) + '» — '
+                        + 'Ergebnisse für «<strong>' + escText(data.suggestion) + '</strong>»';
+                    results.appendChild(hint);
+                }
+
                 var tabs = document.createElement('div');
                 tabs.className = 'guc-search__tabs';
                 tabs.setAttribute('role', 'tablist');
@@ -131,14 +206,14 @@
                 panelsEl.className = 'guc-search__panels';
 
                 data.grouped.forEach(function (group, idx) {
-                    var tabId = 'guc-tab-' + group.type;
+                    var tabId   = 'guc-tab-' + group.type;
                     var panelId = 'guc-panel-' + group.type;
                     var isFirst = idx === 0;
 
                     // Tab
                     var tab = document.createElement('button');
                     tab.type = 'button';
-                    tab.id = tabId;
+                    tab.id   = tabId;
                     tab.className = 'guc-search__tab' + (isFirst ? ' guc-search__tab--active' : '');
                     tab.dataset.type = group.type;
                     tab.setAttribute('role', 'tab');
@@ -148,12 +223,8 @@
                     var badge = document.createElement('span');
                     badge.className = 'guc-search__badge guc-search__badge--' + group.type;
                     badge.textContent = group.label;
-                    if (group.color) {
-                        badge.style.backgroundColor = group.color;
-                    }
-                    if (group.lightText) {
-                        badge.style.color = '#ffffff';
-                    }
+                    if (group.color)     badge.style.backgroundColor = group.color;
+                    if (group.lightText) badge.style.color = '#ffffff';
                     tab.appendChild(badge);
 
                     var cnt = document.createElement('span');
@@ -200,7 +271,7 @@
                         list.appendChild(li);
                     });
 
-                    // "Mehr anzeigen" link when there are more results than shown
+                    // "Mehr anzeigen" link
                     if (group.hasMore && resultsUrl) {
                         var moreLi = document.createElement('li');
                         moreLi.className = 'guc-search__item guc-search__item--more';
@@ -239,6 +310,10 @@
             function hideResults() {
                 results.hidden = true;
                 currentQuery = '';
+            }
+
+            function escText(str) {
+                return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
             }
         }); // end forEach
     } // end initSearch

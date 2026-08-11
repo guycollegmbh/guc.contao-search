@@ -215,6 +215,56 @@ Konfiguration über `data-*`-Attribute des `.guc-search`-Containers:
 - `SearchModuleController` nutzt Doctrine DBAL (nicht mehr Legacy `Contao\Database`).
 - Neue Kategorien erscheinen automatisch ohne Modul-Neukonfiguration.
 
+## Fuzzy-Suche & Autocomplete
+
+### Wörterverzeichnis (`search_words`)
+
+Beim Indexieren sammeln alle Indexer den Volltext und rufen
+`SearchRepository::extractWords()` auf (Unicode-Buchstaben, mind. 4 Zeichen).
+Die Wörter werden mit Häufigkeit in der SQLite-Tabelle `search_words` gespeichert
+(`upsertWords`, `ON CONFLICT DO UPDATE SET frequency = frequency + 1`).
+
+Bei `guc:search:index` ohne `--type` wird `clearWords()` zuerst aufgerufen
+(vollständiger Neuaufbau des Verzeichnisses).
+
+### Autocomplete (`/api/search/suggestions`)
+
+`SearchSuggestionsController` → `GET /api/search/suggestions?q=prefix`
+
+- Mindestlänge: 2 Zeichen; nur Buchstaben-Präfixe
+- `SearchRepository::getSuggestions(prefix, limit=8)` — LIKE-Suche in `search_words`
+- Response: `{"suggestions": ["word1", "word2", ...]}`, `Cache-Control: private, max-age=60`
+- JS ruft diesen Endpoint mit 150 ms Debounce auf, solange noch keine Suchergebnisse sichtbar sind
+- Suggestions werden bei Klick ins Suchfeld übernommen und lösen sofort eine Suche aus
+
+### Fuzzy-Fallback (Levenshtein)
+
+Wenn eine Suche **0 Treffer** liefert, baut `SearchApiController::buildFuzzyFtsQuery()` eine
+erweiterte FTS5-Query auf:
+
+- Jedes Wort mit ≥ 4 Zeichen wird mit dem `search_words`-Verzeichnis verglichen (`levenshtein()`)
+- Maximale Edit-Distanz: **1** für Wörter 4–6 Zeichen, **2** für 7+ Zeichen
+- Wörter < 4 Zeichen werden unverändert übernommen (zu viele False Positives)
+- Gefundene Kandidaten werden als FTS5-OR-Gruppe expandiert: `(original OR kandidat1 OR kandidat2)`
+- Mehrere Wörter → implizites AND zwischen den Gruppen
+
+Die erweiterte Query wird mit den `*Fts()`-Methoden ausgeführt (keine erneute Sanitization).
+Bei Treffer enthält die API-Response: `"fuzzy": true, "suggestion": "korrigiertes wort"`.
+
+**JS-Verhalten bei Fuzzy-Treffer:**
+- Banner `.guc-search__fuzzy-hint` wird oberhalb der Tabs angezeigt:
+  `Keine Treffer für «falschschreibung» — Ergebnisse für «korrektschreibung»`
+- Styling: heller gelb-beiger Hintergrund (#fffbf0), kleine Schrift (0.82rem)
+
+### Dateistruktur (neu)
+
+```
+src/Controller/SearchSuggestionsController.php   GET /api/search/suggestions
+src/Repository/SearchRepository.php              search_words-Tabelle, extractWords(), getSuggestions(), getAllWords()
+                                                 *Fts()-Varianten für fuzzy queries
+src/Controller/SearchApiController.php           buildFuzzyFtsQuery(), fuzzy/suggestion in Response
+```
+
 ## Datei-Struktur
 
 ```
@@ -226,6 +276,7 @@ src/
   Controller/
     FrontendModule/SearchModuleController.php
     SearchApiController.php
+    SearchSuggestionsController.php
   DependencyInjection/GucSearchExtension.php
   EventListener/SearchIndexListener.php     Re-Index-Callbacks für alle relevanten Tabellen
   GucSearchBundle.php
