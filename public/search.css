@@ -159,6 +159,7 @@
 @media (min-width: 520px) {
     .guc-search__results {
         flex-direction: row;
+        flex-wrap: wrap;
     }
 
     .guc-search__tabs {
@@ -350,6 +351,9 @@
     color: #6c757d;
     border-bottom: 1px solid #f0f0f0;
     background: #fffbf0;
+    width: 100%;
+    box-sizing: border-box;
+    flex-shrink: 0;
 }
 
 .guc-search__fuzzy-hint strong {
