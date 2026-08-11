@@ -108,7 +108,6 @@ class PageIndexer implements IndexerInterface
             AND (protected IS NULL OR protected != '1')
             AND (robots IS NULL OR robots NOT LIKE '%noindex%')
             AND (noSearch IS NULL OR noSearch != '1')
-            AND (sitemap IS NULL OR sitemap != 'map_never')
         ");
 
         // Primary: Contao's own search index (includes RSCE and all custom elements).
