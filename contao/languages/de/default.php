@@ -25,7 +25,8 @@ $GLOBALS['TL_LANG']['tl_module']['guc_search_layout_options'] = [
     'inline'  => 'Inline (im Seiteninhalt)',
     'overlay' => 'Overlay (Lupe, z.B. im Header)',
 ];
-$GLOBALS['TL_LANG']['tl_module']['guc_search_toggleIcon'] = ['Lupen-Icon', 'Bild für den Öffnen-Button. Leer = eingebautes SVG-Icon.'];
+$GLOBALS['TL_LANG']['tl_module']['guc_search_trigger'] = ['Bestehendes Element als Auslöser', 'CSS-Selektor eines Elements, das bereits im Theme vorhanden ist (z.B. «.icon-search»). Leer = das Modul rendert einen eigenen Lupen-Button.'];
+$GLOBALS['TL_LANG']['tl_module']['guc_search_toggleIcon'] = ['Lupen-Icon', 'Bild für den Öffnen-Button. Leer = eingebautes SVG-Icon. Wird ignoriert, wenn oben ein Auslöser gesetzt ist.'];
 $GLOBALS['TL_LANG']['MSC']['guc_search_placeholder'] = 'Suchen…';
 $GLOBALS['TL_LANG']['MSC']['guc_search_no_results'] = 'Keine Ergebnisse gefunden.';
 $GLOBALS['TL_LANG']['MSC']['guc_search_more'] = 'Mehr anzeigen';

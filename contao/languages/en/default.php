@@ -29,4 +29,5 @@ $GLOBALS['TL_LANG']['tl_module']['guc_search_layout_options'] = [
     'inline'  => 'Inline (in page content)',
     'overlay' => 'Overlay (magnifier, e.g. in the header)',
 ];
-$GLOBALS['TL_LANG']['tl_module']['guc_search_toggleIcon'] = ['Magnifier icon', 'Image for the open button. Empty = built-in SVG icon.'];
+$GLOBALS['TL_LANG']['tl_module']['guc_search_trigger'] = ['Existing element as trigger', 'CSS selector of an element that already exists in the theme (e.g. ".icon-search"). Empty = the module renders its own magnifier button.'];
+$GLOBALS['TL_LANG']['tl_module']['guc_search_toggleIcon'] = ['Magnifier icon', 'Image for the open button. Empty = built-in SVG icon. Ignored when a trigger is set above.'];

@@ -300,6 +300,22 @@ Beim Schliessen wird das Feld geleert.
 Inline-SVG. `SearchModuleController::resolveToggleIcon()` prüft die Existenz der Datei
 und gibt einen root-relativen Pfad zurück.
 
+**Bestehendes Theme-Element als Auslöser:** Modul-Feld `guc_search_trigger` (CSS-Selektor).
+Gesetzt bedeutet: das Modul rendert **keinen** eigenen Button, stattdessen öffnet ein bereits
+im Theme vorhandenes Element das Overlay (`guc_search_toggleIcon` wird dann ignoriert).
+Gedacht für Themes, die die Lupe schon im Navigations-Template mitbringen.
+
+`findExternalTrigger()` läuft vom Widget aus die Vorfahren hoch und nimmt den ersten,
+der einen Treffer enthält — bei doppelt gerendertem Modul (Desktop + Mobile) bekommt so
+jede Instanz ihren eigenen Auslöser, statt dass beide auf den ersten Treffer im Dokument
+binden. `querySelector` ist in try/catch, ein ungültiger Selektor aus der Modulkonfiguration
+wirft sonst `SyntaxError`. Findet sich nichts, erscheint eine `console.warn` statt einer
+Suche, die stumm nie aufgeht.
+
+Ist der Auslöser kein `<button>` (typisch: ein `<img>`), ergänzt das JS
+`role="button"`, `tabindex="0"`, `aria-label` (aus `data-open-label`) und einen
+Enter/Space-Handler.
+
 ## Fuzzy-Suche & Autocomplete
 
 ### Wörterverzeichnis (`search_words`)
@@ -389,7 +405,8 @@ contao/
   dca/tl_module.php                         Paletten guc_search + guc_search_results;
                                             Felder: guc_search_min_chars, guc_search_types,
                                             guc_search_resultsPage, guc_search_perPage,
-                                            guc_search_layout (+ Subpalette guc_search_toggleIcon)
+                                            guc_search_layout (+ Subpalette guc_search_trigger,
+                                            guc_search_toggleIcon)
   languages/de/ + en/
     default.php                             MOD-Labels inkl. "Erweiterte Suche"
     tl_article.php                          Labels für guc_categories-Feld

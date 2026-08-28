@@ -14,8 +14,14 @@
 
             // Overlay layout only — null for the inline layout.
             const overlay     = widget.querySelector('.guc-search__layer');
-            const toggleBtn   = widget.querySelector('.guc-search__toggle');
             const closeBtn    = widget.querySelector('.guc-search__close');
+            const triggerSel  = widget.dataset.trigger || '';
+
+            // Either the module's own button, or an element that already exists in
+            // the theme (e.g. a magnifier in the navigation template).
+            const toggleBtn   = triggerSel
+                ? findExternalTrigger(triggerSel)
+                : widget.querySelector('.guc-search__toggle');
 
             const apiUrl      = widget.dataset.apiUrl || '/api/search';
             const suggestUrl  = (widget.dataset.apiUrl || '/api/search').replace(/\/search$/, '/search/suggestions');
@@ -114,13 +120,31 @@
 
             let scrollLock = '';
 
-            if (overlay) {
+            if (overlay && toggleBtn) {
                 // position:fixed resolves against the nearest ancestor with a
                 // transform/filter/perspective, which a sticky header may well
                 // have. Reparenting to <body> sidesteps that entirely.
                 overlay.id = uid + 'overlay';
                 toggleBtn.setAttribute('aria-controls', overlay.id);
+                toggleBtn.setAttribute('aria-expanded', 'false');
                 document.body.appendChild(overlay);
+
+                // A theme element (often an <img>) is neither focusable nor
+                // operable by keyboard — make it behave like a button.
+                if (toggleBtn.tagName !== 'BUTTON') {
+                    toggleBtn.setAttribute('role', 'button');
+                    toggleBtn.setAttribute('tabindex', '0');
+                    if (!toggleBtn.getAttribute('aria-label')) {
+                        toggleBtn.setAttribute('aria-label', widget.dataset.openLabel || 'Suche öffnen');
+                    }
+                    toggleBtn.style.cursor = 'pointer';
+                    toggleBtn.addEventListener('keydown', function (e) {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            openOverlay();
+                        }
+                    });
+                }
 
                 toggleBtn.addEventListener('click', openOverlay);
                 closeBtn.addEventListener('click', closeOverlay);
@@ -137,6 +161,11 @@
                 overlay.addEventListener('mousedown', function (e) {
                     if (e.target === overlay) closeOverlay();
                 });
+            } else if (overlay && triggerSel) {
+                // Fail loudly instead of leaving a search that silently never opens.
+                window.console && console.warn(
+                    'guc-search: no element matching "' + triggerSel + '" found near the widget — the overlay cannot be opened.'
+                );
             }
 
             function openOverlay() {
@@ -156,6 +185,34 @@
                 clearBtn.hidden = true;
                 hideResults();
                 toggleBtn.focus();
+            }
+
+            /**
+             * Finds the trigger belonging to *this* instance: walk up from the widget
+             * and take the first ancestor that contains a match. A theme rendering the
+             * module twice (desktop + mobile) thus gets one trigger each instead of
+             * both instances binding to the first match in the document.
+             */
+            function findExternalTrigger(selector) {
+                var node;
+                try {
+                    node = widget.parentElement;
+                } catch (e) {
+                    return null;
+                }
+
+                for (var depth = 0; node && node !== document.body && depth < 6; depth++) {
+                    var hit;
+                    try {
+                        hit = node.querySelector(selector);
+                    } catch (e) {
+                        return null; // invalid selector from the module config
+                    }
+                    if (hit) return hit;
+                    node = node.parentElement;
+                }
+
+                return null;
             }
 
             function trapFocus(e) {

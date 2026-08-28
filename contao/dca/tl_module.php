@@ -2,7 +2,7 @@
 
 $GLOBALS['TL_DCA']['tl_module']['palettes']['guc_search'] = '{title_legend},name,headline,type;{config_legend},guc_search_layout,guc_search_min_chars,guc_search_resultsPage,guc_search_types;{template_legend:hide},customTpl;{protected_legend:hide},protected;{expert_legend:hide},guests,cssID';
 
-$GLOBALS['TL_DCA']['tl_module']['subpalettes']['guc_search_layout_overlay'] = 'guc_search_toggleIcon';
+$GLOBALS['TL_DCA']['tl_module']['subpalettes']['guc_search_layout_overlay'] = 'guc_search_trigger,guc_search_toggleIcon';
 
 $GLOBALS['TL_DCA']['tl_module']['palettes']['guc_search_results'] = '{title_legend},name,headline,type;{config_legend},guc_search_perPage,guc_search_types;{template_legend:hide},customTpl;{protected_legend:hide},protected;{expert_legend:hide},guests,cssID';
 
@@ -24,8 +24,21 @@ $GLOBALS['TL_DCA']['tl_module']['fields']['guc_search_layout'] = [
     'sql'       => ['type' => 'string', 'length' => 16, 'default' => 'inline'],
 ];
 
-// Only used by the overlay layout — the magnifier that opens the overlay.
-// Empty falls back to the inline SVG in the template.
+// CSS selector of an element that already exists in the theme (e.g. a magnifier in
+// the navigation template) which should open the overlay. Set = the module renders
+// no button of its own, and guc_search_toggleIcon is ignored.
+// Resolved per instance by walking up from the widget, so a theme may render the
+// module more than once with one trigger each.
+$GLOBALS['TL_DCA']['tl_module']['fields']['guc_search_trigger'] = [
+    'label'     => &$GLOBALS['TL_LANG']['tl_module']['guc_search_trigger'],
+    'exclude'   => true,
+    'inputType' => 'text',
+    'eval'      => ['maxlength' => 128, 'decodeEntities' => true, 'tl_class' => 'w50'],
+    'sql'       => ['type' => 'string', 'length' => 128, 'default' => ''],
+];
+
+// Only used by the overlay layout when no trigger selector is set — the magnifier
+// that opens the overlay. Empty falls back to the inline SVG in the template.
 $GLOBALS['TL_DCA']['tl_module']['fields']['guc_search_toggleIcon'] = [
     'label'     => &$GLOBALS['TL_LANG']['tl_module']['guc_search_toggleIcon'],
     'exclude'   => true,

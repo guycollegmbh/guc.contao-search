@@ -46,9 +46,13 @@ class SearchModuleController extends AbstractFrontendModuleController
         $template->set('openLabel', $GLOBALS['TL_LANG']['MSC']['guc_search_open'] ?? 'Suche öffnen');
         $template->set('closeLabel', $GLOBALS['TL_LANG']['MSC']['guc_search_close'] ?? 'Suche schliessen');
 
-        $layout = 'overlay' === $model->guc_search_layout ? 'overlay' : 'inline';
+        $layout  = 'overlay' === $model->guc_search_layout ? 'overlay' : 'inline';
+        $trigger = 'overlay' === $layout ? trim((string) $model->guc_search_trigger) : '';
+
         $template->set('layout', $layout);
-        $template->set('toggleIcon', 'overlay' === $layout ? $this->resolveToggleIcon($model) : '');
+        $template->set('triggerSelector', $trigger);
+        // An external trigger replaces the button, so the icon is not needed then.
+        $template->set('toggleIcon', 'overlay' === $layout && '' === $trigger ? $this->resolveToggleIcon($model) : '');
 
         $rawTypes = \Contao\StringUtil::deserialize($model->guc_search_types, true);
 
