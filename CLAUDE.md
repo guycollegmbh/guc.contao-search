@@ -138,6 +138,35 @@ Wichtige Methoden:
 | `clearType(string $type)` | Alle Einträge eines Typs löschen |
 | `clearByIdPrefix(string $prefix)` | Batch-DELETE via `rowid IN (...)` — zwei-stufig: SELECT rowids per GLOB, dann ein DELETE. GLOB auf FTS5-UNINDEXED in DELETE ist unzuverlässig. |
 | `searchGrouped(...)` | Gruppierte Suche — Fallback: `getDistinctTypes()` aus dem Index |
+| `buildFtsQuery(string $clean)` | Baut den FTS5-Ausdruck aus einer bereinigten Query |
+
+#### FTS5-Query-Konstruktion — nicht vereinfachen
+
+`buildFtsQuery()` quotet **jedes Token** als FTS5-String-Literal und hängt das Prefix-`*`
+hinten an: `werk holz` → `"werk" "holz"*`.
+
+Ohne das Quoting wirft FTS5 `syntax error` bei ganz gewöhnlichen Eingaben, und der
+Request endet als HTTP 500:
+
+| Eingabe | ungequotet | gequotet |
+|---|---|---|
+| `Bewerbungsdossier-Werkstatt` | `no such column: Werkstatt` | OK |
+| `e-mail`, `a-b-c` | Syntaxfehler | OK |
+| `AND`, `OR`, `NOT`, `NEAR` | Syntaxfehler | OK (als Literal gesucht) |
+
+`sanitizeQuery()` entfernt zusätzlich verwaiste Bindestriche (`-` allein, führend oder
+folgend) — innerhalb eines Wortes bleiben sie erhalten. Die Guards heissen
+`'' === $clean`, **nicht** `empty($clean)`: `empty('0')` ist in PHP `true`, eine Suche
+nach `0` lieferte sonst stumm nichts.
+
+Derselbe Zwang gilt im `FuzzyQueryBuilder`: Kandidaten werden gequotet (auch die
+Wörter unter 4 Zeichen), und die Teile mit **explizitem** `AND` verbunden. FTS5'
+implizites AND greift nicht über eine Klammergruppe hinweg — `"wort" ("a" OR "b")`
+ist ein Syntaxfehler, `"wort" AND ("a" OR "b")` nicht.
+
+Beide gefilterten Pfade (`SearchApiController` `type`-Zweig und
+`SearchResultsModuleController::renderFiltered()`) haben zusätzlich try/catch als
+Auffangnetz — der gruppierte Pfad hatte das schon.
 
 ### Event Listener (`src/EventListener/SearchIndexListener.php`)
 
@@ -455,6 +484,13 @@ php bin/console contao:migrate
 - FTS5-Query wird von Sonderzeichen bereinigt (`sanitizeQuery`); Fuzzy-Pfad sanitiert zusätzlich jeden Wortteil
 - API-Response gibt nur explizit erlaubte Felder zurück (`formatResult`)
 - Excerpt erlaubt serverseitig nur `<mark>`-Tags (`strip_tags($excerpt, '<mark>')`)
+- `title` und `badge` werden in `ResultFormatter::format()` mit `strip_tags()` bereinigt.
+  Nötig, weil `FileIndexer` (Datei-Metatitel) und `MemberIndexer` (Vor-/Nachname) als
+  einzige Indexer den Titel ungefiltert speichern. Im Ergebnisseiten-Template darf
+  deshalb **nur** `titleHighlight` mit `|raw` ausgegeben werden — der Klartext-Fallback
+  läuft über Twigs Autoescaping (`{% if result.titleHighlight %}…{% else %}{{ result.title }}{% endif %}`).
+  Vorher liess `|default(result.title)|raw` einen Titel wie `<img src=x onerror=…>` durch:
+  `strip_tags` macht den Highlight-Snippet leer, `|default` fällt auf den rohen Titel zurück.
 - `sanitizeUrl()` lässt nur root-relative Pfade durch — lehnt `javascript:`, `data:` und protokoll-relative `//host`-URLs ab
 - `getAllWords()` ist auf 10'000 Wörter limitiert (verhindert Memory-Erschöpfung)
 - Backend-Route erfordert Contao-Backend-Login (BE_MOD-System)
