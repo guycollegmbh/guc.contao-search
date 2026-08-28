@@ -271,6 +271,11 @@ Panel der anderen umschalten.
 
 Modul-Feld `guc_search_layout` (Default `inline`).
 
+`guc_search_layout` muss in `palettes['__selector__']` eingetragen sein, sonst wertet
+Contao die Subpalette `guc_search_layout_overlay` nicht aus und die Felder
+`guc_search_trigger` / `guc_search_toggleIcon` erscheinen nie im Backend —
+`submitOnChange` allein genügt dafür nicht.
+
 | Layout | Markup | Verhalten |
 |---|---|---|
 | `inline` | Feld + `.guc-search__results` direkt im Container | Treffer als Dropdown unter dem Feld (`position: absolute`) |

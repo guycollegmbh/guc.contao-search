@@ -2,6 +2,10 @@
 
 $GLOBALS['TL_DCA']['tl_module']['palettes']['guc_search'] = '{title_legend},name,headline,type;{config_legend},guc_search_layout,guc_search_min_chars,guc_search_resultsPage,guc_search_types;{template_legend:hide},customTpl;{protected_legend:hide},protected;{expert_legend:hide},guests,cssID';
 
+// Ohne die Registrierung als Selector wertet Contao die Subpalette nicht aus —
+// submitOnChange allein genügt nicht.
+$GLOBALS['TL_DCA']['tl_module']['palettes']['__selector__'][] = 'guc_search_layout';
+
 $GLOBALS['TL_DCA']['tl_module']['subpalettes']['guc_search_layout_overlay'] = 'guc_search_trigger,guc_search_toggleIcon';
 
 $GLOBALS['TL_DCA']['tl_module']['palettes']['guc_search_results'] = '{title_legend},name,headline,type;{config_legend},guc_search_perPage,guc_search_types;{template_legend:hide},customTpl;{protected_legend:hide},protected;{expert_legend:hide},guests,cssID';
