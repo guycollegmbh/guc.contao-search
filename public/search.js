@@ -2,10 +2,20 @@
     'use strict';
 
     function initSearch() {
-        document.querySelectorAll('.guc-search').forEach(function (widget) {
+        // The overlay layer also carries `guc-search` (for CSS scoping) but is not
+        // a widget of its own — skip it.
+        document.querySelectorAll('.guc-search:not(.guc-search__layer)').forEach(function (widget, widgetIndex) {
+            // Themes may render the widget more than once (e.g. desktop + mobile header).
+            // Prefix every generated DOM id so the instances cannot collide.
+            const uid         = 'guc-s' + widgetIndex + '-';
             const input       = widget.querySelector('.guc-search__input');
             const results     = widget.querySelector('.guc-search__results');
             const clearBtn    = widget.querySelector('.guc-search__clear');
+
+            // Overlay layout only — null for the inline layout.
+            const overlay     = widget.querySelector('.guc-search__layer');
+            const toggleBtn   = widget.querySelector('.guc-search__toggle');
+            const closeBtn    = widget.querySelector('.guc-search__close');
 
             const apiUrl      = widget.dataset.apiUrl || '/api/search';
             const suggestUrl  = (widget.dataset.apiUrl || '/api/search').replace(/\/search$/, '/search/suggestions');
@@ -53,8 +63,12 @@
                         window.location.href = resultsUrl + '?keywords=' + encodeURIComponent(query);
                     }
                 } else if (e.key === 'Escape') {
-                    hideResults();
-                    input.blur();
+                    if (overlay) {
+                        closeOverlay();
+                    } else {
+                        hideResults();
+                        input.blur();
+                    }
                 } else if (e.key === 'ArrowDown' && !results.hidden) {
                     e.preventDefault();
                     var first = results.querySelector('.guc-search__suggestion, .guc-search__link, .guc-search__more');
@@ -89,10 +103,79 @@
             });
 
             document.addEventListener('click', function (e) {
-                if (!widget.contains(e.target)) {
-                    hideResults();
-                }
+                // The overlay lives outside the widget once it has been moved to
+                // <body>, so it needs to be checked separately.
+                if (widget.contains(e.target)) return;
+                if (overlay && overlay.contains(e.target)) return;
+                hideResults();
             });
+
+            // ── Fullscreen overlay ────────────────────────────────────────────
+
+            let scrollLock = '';
+
+            if (overlay) {
+                // position:fixed resolves against the nearest ancestor with a
+                // transform/filter/perspective, which a sticky header may well
+                // have. Reparenting to <body> sidesteps that entirely.
+                overlay.id = uid + 'overlay';
+                toggleBtn.setAttribute('aria-controls', overlay.id);
+                document.body.appendChild(overlay);
+
+                toggleBtn.addEventListener('click', openOverlay);
+                closeBtn.addEventListener('click', closeOverlay);
+
+                overlay.addEventListener('keydown', function (e) {
+                    if (e.key === 'Escape') {
+                        closeOverlay();
+                    } else if (e.key === 'Tab') {
+                        trapFocus(e);
+                    }
+                });
+
+                // Click on the backdrop, i.e. next to the inner container
+                overlay.addEventListener('mousedown', function (e) {
+                    if (e.target === overlay) closeOverlay();
+                });
+            }
+
+            function openOverlay() {
+                overlay.hidden = false;
+                toggleBtn.setAttribute('aria-expanded', 'true');
+                scrollLock = document.body.style.overflow;
+                document.body.style.overflow = 'hidden';
+                input.focus();
+            }
+
+            function closeOverlay() {
+                if (overlay.hidden) return;
+                overlay.hidden = true;
+                toggleBtn.setAttribute('aria-expanded', 'false');
+                document.body.style.overflow = scrollLock;
+                input.value = '';
+                clearBtn.hidden = true;
+                hideResults();
+                toggleBtn.focus();
+            }
+
+            function trapFocus(e) {
+                var focusable = Array.prototype.filter.call(
+                    overlay.querySelectorAll('a[href], button:not([disabled]), input, [tabindex="0"]'),
+                    function (el) { return !el.hidden && el.offsetParent !== null; }
+                );
+                if (focusable.length === 0) return;
+
+                var first = focusable[0];
+                var last  = focusable[focusable.length - 1];
+
+                if (e.shiftKey && document.activeElement === first) {
+                    e.preventDefault();
+                    last.focus();
+                } else if (!e.shiftKey && document.activeElement === last) {
+                    e.preventDefault();
+                    first.focus();
+                }
+            }
 
             // ── Autocomplete suggestions ──────────────────────────────────────
 
@@ -206,8 +289,8 @@
                 panelsEl.className = 'guc-search__panels';
 
                 data.grouped.forEach(function (group, idx) {
-                    var tabId   = 'guc-tab-' + group.type;
-                    var panelId = 'guc-panel-' + group.type;
+                    var tabId   = uid + 'tab-' + group.type;
+                    var panelId = uid + 'panel-' + group.type;
                     var isFirst = idx === 0;
 
                     // Tab
@@ -219,6 +302,7 @@
                     tab.setAttribute('role', 'tab');
                     tab.setAttribute('aria-selected', isFirst ? 'true' : 'false');
                     tab.setAttribute('aria-controls', panelId);
+                    tab.dataset.index = idx;
 
                     var badge = document.createElement('span');
                     badge.className = 'guc-search__badge guc-search__badge--' + group.type;
@@ -299,7 +383,10 @@
                     });
                     tab.classList.add('guc-search__tab--active');
                     tab.setAttribute('aria-selected', 'true');
-                    document.getElementById(tab.getAttribute('aria-controls')).hidden = false;
+                    // Resolve the panel by position within this widget, not by a
+                    // document-wide id lookup — several widgets may be on the page.
+                    var panel = panelsEl.children[parseInt(tab.dataset.index, 10)];
+                    if (panel) panel.hidden = false;
                 });
 
                 results.appendChild(tabs);

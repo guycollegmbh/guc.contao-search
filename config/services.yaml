@@ -61,6 +61,10 @@ services:
         public: true
         tags: ['controller.service_arguments']
 
+    Guc\SearchBundle\Controller\FrontendModule\SearchResultsModuleController:
+        public: true
+        tags: ['controller.service_arguments']
+
     Guc\SearchBundle\Backend\SearchIndexModule:
         public: true
 

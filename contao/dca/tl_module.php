@@ -1,6 +1,43 @@
 <?php
 
-$GLOBALS['TL_DCA']['tl_module']['palettes']['guc_search'] = '{title_legend},name,headline,type;{config_legend},guc_search_min_chars,guc_search_resultsPage,guc_search_types;{template_legend:hide},customTpl;{protected_legend:hide},protected;{expert_legend:hide},guests,cssID';
+$GLOBALS['TL_DCA']['tl_module']['palettes']['guc_search'] = '{title_legend},name,headline,type;{config_legend},guc_search_layout,guc_search_min_chars,guc_search_resultsPage,guc_search_types;{template_legend:hide},customTpl;{protected_legend:hide},protected;{expert_legend:hide},guests,cssID';
+
+$GLOBALS['TL_DCA']['tl_module']['subpalettes']['guc_search_layout_overlay'] = 'guc_search_toggleIcon';
+
+$GLOBALS['TL_DCA']['tl_module']['palettes']['guc_search_results'] = '{title_legend},name,headline,type;{config_legend},guc_search_perPage,guc_search_types;{template_legend:hide},customTpl;{protected_legend:hide},protected;{expert_legend:hide},guests,cssID';
+
+$GLOBALS['TL_DCA']['tl_module']['fields']['guc_search_perPage'] = [
+    'label'     => &$GLOBALS['TL_LANG']['tl_module']['guc_search_perPage'],
+    'exclude'   => true,
+    'inputType' => 'text',
+    'eval'      => ['rgxp' => 'natural', 'minval' => 1, 'maxval' => 100, 'tl_class' => 'w50'],
+    'sql'       => ['type' => 'smallint', 'unsigned' => true, 'default' => 10],
+];
+
+$GLOBALS['TL_DCA']['tl_module']['fields']['guc_search_layout'] = [
+    'label'     => &$GLOBALS['TL_LANG']['tl_module']['guc_search_layout'],
+    'exclude'   => true,
+    'inputType' => 'select',
+    'options'   => ['inline', 'overlay'],
+    'reference' => &$GLOBALS['TL_LANG']['tl_module']['guc_search_layout_options'],
+    'eval'      => ['submitOnChange' => true, 'tl_class' => 'w50'],
+    'sql'       => ['type' => 'string', 'length' => 16, 'default' => 'inline'],
+];
+
+// Only used by the overlay layout — the magnifier that opens the overlay.
+// Empty falls back to the inline SVG in the template.
+$GLOBALS['TL_DCA']['tl_module']['fields']['guc_search_toggleIcon'] = [
+    'label'     => &$GLOBALS['TL_LANG']['tl_module']['guc_search_toggleIcon'],
+    'exclude'   => true,
+    'inputType' => 'fileTree',
+    'eval'      => [
+        'filesOnly'  => true,
+        'fieldType'  => 'radio',
+        'extensions' => 'svg,png,jpg,jpeg,gif,webp',
+        'tl_class'   => 'w50 clr',
+    ],
+    'sql'       => ['type' => 'binary', 'length' => 16, 'fixed' => true, 'notnull' => false],
+];
 
 $GLOBALS['TL_DCA']['tl_module']['fields']['guc_search_resultsPage'] = [
     'label'     => &$GLOBALS['TL_LANG']['tl_module']['guc_search_resultsPage'],

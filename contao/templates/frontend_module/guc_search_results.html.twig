@@ -1,0 +1,111 @@
+{% extends "@Contao/frontend_module/_base.html.twig" %}
+
+{% block content %}
+<div class="guc-search-results">
+
+    <form class="guc-search-results__form" action="{{ searchAction }}" method="get" role="search">
+        <input type="search"
+               name="keywords"
+               class="guc-search__input"
+               value="{{ query }}"
+               placeholder="Suchbegriff eingeben…"
+               autocomplete="off"
+               aria-label="Suchbegriff">
+        {% if activeType is defined and activeType %}
+            <input type="hidden" name="type" value="{{ activeType }}">
+        {% endif %}
+        <button type="submit" class="guc-search-results__submit">Suchen</button>
+    </form>
+
+    {% if fuzzy %}
+        <p class="guc-search__fuzzy-hint">
+            Keine Treffer für «<strong>{{ query }}</strong>» — Ergebnisse für «<strong>{{ fuzzy }}</strong>»
+        </p>
+    {% endif %}
+
+    {% if mode == 'empty' %}
+        <p class="guc-search__empty">Bitte geben Sie einen Suchbegriff ein.</p>
+
+    {% elseif mode == 'filtered' %}
+        <p class="guc-search-results__meta">
+            {{ total }} {{ total == 1 ? 'Ergebnis' : 'Ergebnisse' }} in
+            <span class="guc-search__badge guc-search__badge--{{ activeType }}"
+                  {% if color %}style="background-color:{{ color }}{% if lightText %};color:#ffffff{% endif %}"{% endif %}>{{ activeLabel }}</span>
+            für «{{ query }}»
+            <a class="guc-search-results__reset" href="{{ resetUrl }}">Filter aufheben</a>
+        </p>
+
+        {% if results is empty %}
+            <p class="guc-search__empty">Keine Treffer gefunden.</p>
+        {% else %}
+            <ul class="guc-search-results__list">
+                {% for result in results %}
+                    <li class="guc-search__item">
+                        <a class="guc-search__link" href="{{ result.url }}">
+                            <strong class="guc-search__title">{{ result.titleHighlight|default(result.title)|raw }}</strong>
+                            {% if result.excerpt %}
+                                <span class="guc-search__excerpt">{{ result.excerpt|raw }}</span>
+                            {% endif %}
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        {% if pagination %}
+            <nav class="guc-search-results__pagination" aria-label="Seitennavigation Suchergebnisse">
+                {% if pagination.prev %}
+                    <a class="guc-search-results__page" href="{{ pagination.prev }}" rel="prev">← Zurück</a>
+                {% endif %}
+                {% for item in pagination.items %}
+                    {% if item.current %}
+                        <span class="guc-search-results__page guc-search-results__page--current" aria-current="page">{{ item.page }}</span>
+                    {% else %}
+                        <a class="guc-search-results__page" href="{{ item.url }}">{{ item.page }}</a>
+                    {% endif %}
+                {% endfor %}
+                {% if pagination.next %}
+                    <a class="guc-search-results__page" href="{{ pagination.next }}" rel="next">Weiter →</a>
+                {% endif %}
+            </nav>
+        {% endif %}
+
+    {% else %}
+        <p class="guc-search-results__meta">
+            {{ total }} {{ total == 1 ? 'Ergebnis' : 'Ergebnisse' }} für «{{ query }}»
+        </p>
+
+        {% if groups is empty %}
+            <p class="guc-search__empty">Keine Treffer gefunden.</p>
+        {% endif %}
+
+        {% for group in groups %}
+            <section class="guc-search-results__group">
+                <h3 class="guc-search-results__group-title">
+                    <span class="guc-search__badge guc-search__badge--{{ group.type }}"
+                          {% if group.color %}style="background-color:{{ group.color }}{% if group.lightText %};color:#ffffff{% endif %}"{% endif %}>{{ group.label }}</span>
+                    <span class="guc-search-results__group-count">{{ group.total }}</span>
+                </h3>
+
+                <ul class="guc-search-results__list">
+                    {% for result in group.results %}
+                        <li class="guc-search__item">
+                            <a class="guc-search__link" href="{{ result.url }}">
+                                <strong class="guc-search__title">{{ result.titleHighlight|default(result.title)|raw }}</strong>
+                                {% if result.excerpt %}
+                                    <span class="guc-search__excerpt">{{ result.excerpt|raw }}</span>
+                                {% endif %}
+                            </a>
+                        </li>
+                    {% endfor %}
+                </ul>
+
+                {% if group.hasMore %}
+                    <a class="guc-search__more" href="{{ group.url }}">Alle {{ group.total }} Ergebnisse anzeigen →</a>
+                {% endif %}
+            </section>
+        {% endfor %}
+    {% endif %}
+
+</div>
+{% endblock %}

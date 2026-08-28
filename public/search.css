@@ -359,3 +359,223 @@
 .guc-search__fuzzy-hint strong {
     color: #212529;
 }
+
+/* ══ Results page (guc_search_results) ══ */
+
+.guc-search-results__form {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+}
+
+.guc-search-results__form .guc-search__input {
+    flex: 1;
+}
+
+.guc-search-results__submit {
+    appearance: none;
+    -webkit-appearance: none;
+    border: none;
+    cursor: pointer;
+    color: #fff;
+    background-image: linear-gradient(to right, rgb(227, 6, 19) 0%, rgb(238, 123, 169) 51%, rgb(227, 6, 19) 100%);
+    background-size: 210% auto;
+    border-radius: 4px;
+    padding: 0 24px;
+    height: 42px;
+    font-size: 0.925rem;
+    transition: background-position .2s linear;
+}
+
+.guc-search-results__submit:hover,
+.guc-search-results__submit:focus {
+    background-position: right center;
+}
+
+.guc-search-results .guc-search__fuzzy-hint {
+    border: 1px solid #f0e4c8;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.guc-search-results__meta {
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin-bottom: 20px;
+}
+
+.guc-search-results__reset {
+    margin-left: 10px;
+    font-size: 0.82rem;
+}
+
+.guc-search-results__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+/* The overlay truncates excerpts to one line; on a full page they may wrap. */
+.guc-search-results .guc-search__excerpt {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    margin-top: 4px;
+    line-height: 1.5;
+}
+
+.guc-search-results .guc-search__link {
+    padding: 12px 16px;
+}
+
+.guc-search-results .guc-search__link:hover,
+.guc-search-results .guc-search__link:focus {
+    background: #f8f9fa;
+}
+
+.guc-search-results .guc-search__item {
+    margin: 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.guc-search-results__group {
+    margin-bottom: 32px;
+}
+
+.guc-search-results__group-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 10px;
+}
+
+.guc-search-results__group-count {
+    font-size: 0.82rem;
+    color: #6c757d;
+    font-weight: 400;
+}
+
+.guc-search-results__pagination {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 24px;
+}
+
+.guc-search-results__page {
+    display: inline-block;
+    padding: 6px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    text-decoration: none;
+    color: #212529;
+    font-size: 0.9rem;
+}
+
+.guc-search-results__page:hover,
+.guc-search-results__page:focus {
+    border-color: #e30613;
+}
+
+.guc-search-results__page--current {
+    background: #e30613;
+    border-color: #e30613;
+    color: #fff;
+}
+
+/* ── Fullscreen-Overlay (Layout "overlay") ────────────────────────────── */
+
+/* Im Overlay-Modus ist der Widget-Container nur noch der Lupen-Button.
+   Das Panel hängt am <body>, darum hier kein Positionierungskontext nötig. */
+.guc-search--overlay {
+    position: static;
+    display: inline-flex;
+    align-items: center;
+}
+
+.guc-search .guc-search__toggle {
+    appearance: none;
+    -webkit-appearance: none;
+    background: none;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    line-height: 0;
+    cursor: pointer;
+    color: inherit;
+}
+
+.guc-search .guc-search__toggle:hover,
+.guc-search .guc-search__toggle:focus {
+    background: none;
+    border: 0;
+}
+
+/* Der Layer trägt selbst die Klasse .guc-search, weil alle Regeln oben so
+   gescoped sind — nach dem Verschieben ans <body> ist er kein Nachfahre des
+   Widgets mehr. Diese Regeln stehen darum nach .guc-search und überschreiben es. */
+.guc-search__layer {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(255, 255, 255, 0.98);
+    display: flex;
+    justify-content: center;
+    overflow-y: auto;
+    padding: 24px 16px 48px;
+    box-sizing: border-box;
+}
+
+/* display:flex würde das hidden-Attribut sonst überstimmen */
+.guc-search__layer[hidden] {
+    display: none;
+}
+
+.guc-search__layer-inner {
+    position: relative;
+    width: 100%;
+    max-width: 720px;
+    margin-top: 8vh;
+    padding-top: 44px;
+}
+
+.guc-search .guc-search__close {
+    appearance: none;
+    -webkit-appearance: none;
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: none;
+    border: 0;
+    padding: 0 4px;
+    font-size: 2.25rem;
+    line-height: 1;
+    font-weight: 300;
+    color: #212529;
+    cursor: pointer;
+}
+
+.guc-search .guc-search__close:hover,
+.guc-search .guc-search__close:focus {
+    background: none;
+    color: #e30613;
+    outline: none;
+}
+
+/* Im Layer fliesst die Trefferliste im Normalfluss statt als Dropdown */
+.guc-search__layer .guc-search__results {
+    position: static;
+    margin-top: 20px;
+    min-width: 0;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    overflow: visible;
+}
+
+@media (max-width: 767px) {
+    .guc-search__layer-inner {
+        margin-top: 24px;
+    }
+}

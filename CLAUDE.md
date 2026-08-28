@@ -157,12 +157,39 @@ Triggert automatische Neuindexierung bei Backend-Änderungen:
 | Klasse | Route / Zweck |
 |---|---|
 | `SearchApiController` | `GET /api/search` — JSON-API, Query-Params: `q`, `lang`, `type`, `page`, `types` |
-| `SearchModuleController` | Fragment — Contao Frontend-Modul (`guc_search`), nutzt Doctrine DBAL |
+| `SearchModuleController` | Fragment — Contao Frontend-Modul (`guc_search`), das Live-Widget |
+| `SearchResultsModuleController` | Fragment — Contao Frontend-Modul (`guc_search_results`), serverseitige Ergebnisseite |
 | `Backend\SearchIndexModule` | BE_MOD-Callback — reine Index-Statusanzeige im Backend |
 
-`SearchApiController` lädt aktive Kategorien aus `tl_guc_category` (via Doctrine DBAL),
-um `allowedTypes`, `badgeLabels`, `categoryColors` und `categoryLightText` dynamisch zu befüllen.
-Kategorie-Aliases werden den fixen Typen vorangestellt, damit sie zuerst erscheinen.
+### Geteilte Such-Services (`src/Search/`)
+
+Damit Overlay (JSON-API) und Ergebnisseite sich garantiert identisch verhalten,
+liegt die gemeinsame Logik in eigenen Services statt in `private`-Methoden der Controller:
+
+| Klasse | Zweck |
+|---|---|
+| `CategoryProvider` | Lädt aktive `tl_guc_category`-Zeilen via DBAL und liefert ein `SearchTypes` |
+| `SearchTypes` | Immutable: `allowed()`, `ordered()`, `label()`, `color()`, `isLightText()`, `filterList()`. Konstante `SearchTypes::FIXED` = die sechs festen Typen |
+| `FuzzyQueryBuilder` | `build(string $query): ?array` — Levenshtein-Expansion (vorher `SearchApiController::buildFuzzyFtsQuery()`) |
+| `ResultFormatter` | `format()` / `formatAll()` inkl. `sanitizeSnippet()` und `sanitizeUrl()` |
+
+`SearchTypes::ordered()` stellt Kategorie-Aliases den fixen Typen voran, damit sie zuerst erscheinen.
+
+### Ergebnisseite (`guc_search_results`)
+
+Serverseitiges Gegenstück zum Live-Widget. Liest `keywords` und `type` aus der URL —
+exakt die Parameter, die `search.js` beim Verlinken schreibt — und rendert ohne JavaScript.
+
+| Modus | Bedingung | Ausgabe |
+|---|---|---|
+| `empty` | kein `keywords` oder > 200 Zeichen | nur das Suchformular |
+| `grouped` | `keywords`, kein `type` | Gruppen-Übersicht, `perPage` Treffer je Gruppe, je ein „Alle N anzeigen"-Link |
+| `filtered` | `keywords` + gültiger `type` | flache, paginierte Liste eines Typs |
+
+- Paginierungs-Parameter: `page_s{moduleId}` (Contao-Konvention, kollidiert nicht mit anderen Modulen)
+- Fuzzy-Fallback identisch zur API — bei Treffer wird `.guc-search__fuzzy-hint` gerendert
+- `guc_search_types` wirkt als Whitelist: ein `type` ausserhalb der Modulkonfiguration fällt auf `grouped` zurück
+- CSS-Block `.guc-search-results` in `search.css`; Item-/Badge-Klassen werden vom Overlay mitbenutzt
 
 `Backend\SearchIndexModule` ist kein Symfony-Controller, sondern eine Contao-BE_MOD-Callback-Klasse.
 Contao instanziiert sie via `System::importStatic()` (DI-fähig in Contao 5) und ruft `generate()` auf.
@@ -223,15 +250,55 @@ Konfiguration über `data-*`-Attribute des `.guc-search`-Containers:
 - Link navigiert zu `resultsUrl?keywords=...&type=...` (direkt gefilterte Ergebnisseite).
 - Keyboard-Navigation (`ArrowDown`/`ArrowUp`) schließt den Link ein.
 
+**Mehrfach-Instanzen auf einer Seite:**
+Themes rendern das Widget häufig doppelt (z.B. Desktop-Header + Mobile-Menü).
+`initSearch()` vergibt darum pro Instanz ein ID-Prefix `guc-s{index}-`, und der
+Tab-Wechsel löst das Panel über `panelsEl.children[tab.dataset.index]` auf statt über
+`document.getElementById()`. Ohne das würde ein Tab-Klick in der einen Instanz das
+Panel der anderen umschalten.
+
 **Barrierefreiheit (ARIA):**
-- Tab-Buttons haben eindeutige `id="guc-tab-{type}"`
-- Tab-Panels haben `aria-labelledby="guc-tab-{type}"` und `tabindex="0"`
+- Tab-Buttons haben eindeutige `id="guc-s{index}-tab-{type}"`
+- Tab-Panels haben `aria-labelledby` auf diese ID und `tabindex="0"`
 - Keyboard-Navigation berücksichtigt `.guc-search__link` und `.guc-search__more`
 
 **Typ-Auswahl im Frontend-Modul:**
 - `_categories`-Platzhalter im Modul-Backend wird zur Laufzeit durch alle aktiven Aliases ersetzt.
 - `SearchModuleController` nutzt Doctrine DBAL (nicht mehr Legacy `Contao\Database`).
 - Neue Kategorien erscheinen automatisch ohne Modul-Neukonfiguration.
+
+### Darstellung: `inline` vs. `overlay`
+
+Modul-Feld `guc_search_layout` (Default `inline`).
+
+| Layout | Markup | Verhalten |
+|---|---|---|
+| `inline` | Feld + `.guc-search__results` direkt im Container | Treffer als Dropdown unter dem Feld (`position: absolute`) |
+| `overlay` | Lupen-Button + `.guc-search__layer` | Klick öffnet ein Fullscreen-Panel über der ganzen Seite |
+
+Das Suchfeld-Markup liegt für beide Layouts in einem einzigen Partial
+(`templates/frontend_module/_search_field.html.twig`, eingebunden über `@GucSearch/`),
+damit die Varianten nicht auseinanderlaufen können.
+
+**Zwei Fallstricke, die der Overlay-Modus umgeht:**
+
+1. `search.js` hängt `.guc-search__layer` beim Init an `<body>`. `position: fixed` löst
+   sonst gegen den nächsten Vorfahren mit `transform`/`filter`/`perspective` auf — bei
+   einem Sticky-Header ist das die Regel, und das Overlay bliebe im Header eingesperrt.
+2. Der Layer trägt **selbst** die Klasse `guc-search`. Sämtliche CSS-Regeln sind als
+   `.guc-search .guc-search__…` gescoped (um Theme-Selektoren wie `[type=button]` zu
+   überstimmen); nach dem Verschieben ans `<body>` ist der Layer kein Nachfahre des
+   Widgets mehr und wäre sonst komplett unstyled. `initSearch()` selektiert darum
+   `.guc-search:not(.guc-search__layer)`, damit der Layer nicht als eigenes Widget initialisiert wird.
+
+**Overlay-Interaktion:** ESC und Backdrop-Klick schliessen, Fokus wandert beim Öffnen
+ins Feld und beim Schliessen zurück auf die Lupe, `document.body.style.overflow` wird
+gesperrt und auf den vorherigen Wert zurückgesetzt, Tab-Fokus ist im Layer gefangen.
+Beim Schliessen wird das Feld geleert.
+
+**Lupen-Icon:** Modul-Feld `guc_search_toggleIcon` (Dateiauswahl). Leer = eingebautes
+Inline-SVG. `SearchModuleController::resolveToggleIcon()` prüft die Existenz der Datei
+und gibt einen root-relativen Pfad zurück.
 
 ## Fuzzy-Suche & Autocomplete
 
@@ -293,8 +360,14 @@ src/
     SearchIndexModule.php                 BE_MOD-Callback (kein Symfony-Controller)
   Controller/
     FrontendModule/SearchModuleController.php
+    FrontendModule/SearchResultsModuleController.php
     SearchApiController.php
     SearchSuggestionsController.php
+  Search/
+    CategoryProvider.php                      tl_guc_category → SearchTypes
+    SearchTypes.php                           Typ-Whitelist, Labels, Farben
+    FuzzyQueryBuilder.php                     Levenshtein-Expansion
+    ResultFormatter.php                       Feld-Whitelist + Sanitization
   DependencyInjection/GucSearchExtension.php
   EventListener/SearchIndexListener.php     Re-Index-Callbacks für alle relevanten Tabellen
   GucSearchBundle.php
@@ -313,7 +386,10 @@ contao/
   config/config.php                         BE_MOD: guc_search_index (callback) + guc_search_categories (DCA)
   dca/tl_article.php                        Erweiterung: Feld guc_categories (checkboxWizard)
   dca/tl_guc_category.php                  DCA für Kategorieverwaltung
-  dca/tl_module.php                         Felder: guc_search_min_chars, guc_search_types, guc_search_resultsPage
+  dca/tl_module.php                         Paletten guc_search + guc_search_results;
+                                            Felder: guc_search_min_chars, guc_search_types,
+                                            guc_search_resultsPage, guc_search_perPage,
+                                            guc_search_layout (+ Subpalette guc_search_toggleIcon)
   languages/de/ + en/
     default.php                             MOD-Labels inkl. "Erweiterte Suche"
     tl_article.php                          Labels für guc_categories-Feld
@@ -321,7 +397,9 @@ contao/
 
 templates/
   backend/search_index.html.twig            Backend-Verwaltung
-  frontend_module/guc_search.html.twig      Frontend-Modul (Fragment-Template)
+  frontend_module/guc_search.html.twig      Live-Widget (Fragment-Template, inline + overlay)
+  frontend_module/guc_search_results.html.twig  Ergebnisseite (Fragment-Template)
+  frontend_module/_search_field.html.twig   Geteiltes Feld-Markup (@GucSearch/), von beiden Layouts inkludiert
 
 public/
   search.js
@@ -393,6 +471,10 @@ Dann im `SearchApiController` via `RateLimiterFactory $gucSearchApiLimiter` einb
   Individuelle Mitglieder-URLs würden eine installationsspezifische Konfiguration erfordern.
 - **`hasMore`-Link** erscheint nur wenn `data-results-url` am Widget gesetzt ist.
   Ohne diese URL wird der Link nicht gerendert (kein "blinder" Link auf `#`).
+- **Ergebnisseite muss verdrahtet werden:** `data-results-url` (Feld „Weiterleitungsseite")
+  sollte auf eine Seite zeigen, auf der ein `guc_search_results`-Modul liegt. Zeigt es auf
+  eine Seite mit Contaos eigenem `mod_search`, laufen Overlay und Ergebnisliste gegen
+  verschiedene Indizes (`search.db` vs. `tl_search`) und liefern abweichende Treffer.
 
 ## Twig-Namespace
 

@@ -1,21 +1,35 @@
 {% extends "@Contao/frontend_module/_base.html.twig" %}
 
 {% block content %}
-<div class="guc-search"
+<div class="guc-search{% if layout == 'overlay' %} guc-search--overlay{% endif %}"
      data-api-url="{{ apiUrl }}"
      data-min-chars="{{ minChars }}"
      data-debounce="{{ debounce }}"
      data-lang="{{ language }}"
      {% if resultsPageUrl %}data-results-url="{{ resultsPageUrl }}"{% endif %}
      {% if searchTypes %}data-types="{{ searchTypes }}"{% endif %}>
-    <div class="guc-search__field">
-        <input type="search"
-               class="guc-search__input"
-               placeholder="{{ placeholder }}"
-               autocomplete="off"
-               aria-label="{{ placeholder }}">
-        <button class="guc-search__clear" type="button" hidden aria-label="Suche löschen">&times;</button>
-    </div>
-    <div class="guc-search__results" hidden role="region" aria-live="polite" aria-label="Suchergebnisse"></div>
+    {% if layout == 'overlay' %}
+        <button type="button" class="guc-search__toggle" aria-expanded="false" aria-label="{{ openLabel }}">
+            {% if toggleIcon %}
+                <img class="icon-search" src="{{ toggleIcon }}" alt="" width="16" height="16">
+            {% else %}
+                <svg class="icon-search" viewBox="0 0 512 512" width="16" height="16" aria-hidden="true" focusable="false">
+                    <path fill="currentColor" d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352a144 144 0 1 0 0-288 144 144 0 1 0 0 288z"/>
+                </svg>
+            {% endif %}
+        </button>
+        {# Moved to <body> by search.js so position:fixed cannot be trapped by a
+           transformed ancestor in the header. It carries `guc-search` itself
+           because the CSS scopes its rules that way — once reparented, the layer
+           is no longer a descendant of the widget. #}
+        <div class="guc-search guc-search__layer" hidden role="dialog" aria-modal="true" aria-label="{{ placeholder }}">
+            <div class="guc-search__layer-inner">
+                <button type="button" class="guc-search__close" aria-label="{{ closeLabel }}">&times;</button>
+                {% include '@GucSearch/frontend_module/_search_field.html.twig' %}
+            </div>
+        </div>
+    {% else %}
+        {% include '@GucSearch/frontend_module/_search_field.html.twig' %}
+    {% endif %}
 </div>
 {% endblock %}
