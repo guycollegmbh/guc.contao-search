@@ -56,16 +56,27 @@ class SearchApiController extends AbstractController
             if (!empty($enabledTypes) && !\in_array($type, $enabledTypes, true)) {
                 return $this->json(['results' => [], 'total' => 0, 'page' => 1, 'pages' => 0, 'query' => $query]);
             }
-            $results = $this->searchRepository->searchByType($query, $type, $language, $perPage, $offset);
-            $total   = $this->searchRepository->countByType($query, $type, $language);
+            // A malformed FTS5 query must degrade to "no results", not to a 500.
+            try {
+                $results = $this->searchRepository->searchByType($query, $type, $language, $perPage, $offset);
+                $total   = $this->searchRepository->countByType($query, $type, $language);
+            } catch (\Throwable) {
+                return $this->json(['results' => [], 'total' => 0, 'page' => 1, 'pages' => 0, 'query' => $query, 'error' => 'search_failed']);
+            }
 
             // Fuzzy fallback: if no results, try Levenshtein-expanded query
             $fuzzy = null;
             if ($total === 0) {
                 $fuzzy = $this->fuzzyQueryBuilder->build($query);
                 if ($fuzzy !== null) {
-                    $results = $this->searchRepository->searchByTypeFts($fuzzy['ftsQuery'], $type, $language, $perPage, $offset);
-                    $total   = $this->searchRepository->countByTypeFts($fuzzy['ftsQuery'], $type, $language);
+                    try {
+                        $results = $this->searchRepository->searchByTypeFts($fuzzy['ftsQuery'], $type, $language, $perPage, $offset);
+                        $total   = $this->searchRepository->countByTypeFts($fuzzy['ftsQuery'], $type, $language);
+                    } catch (\Throwable) {
+                        $results = [];
+                        $total   = 0;
+                        $fuzzy   = null;
+                    }
                 }
             }
 

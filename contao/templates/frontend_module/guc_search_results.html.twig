@@ -42,7 +42,7 @@
                 {% for result in results %}
                     <li class="guc-search__item">
                         <a class="guc-search__link" href="{{ result.url }}">
-                            <strong class="guc-search__title">{{ result.titleHighlight|default(result.title)|raw }}</strong>
+                            <strong class="guc-search__title">{% if result.titleHighlight %}{{ result.titleHighlight|raw }}{% else %}{{ result.title }}{% endif %}</strong>
                             {% if result.excerpt %}
                                 <span class="guc-search__excerpt">{{ result.excerpt|raw }}</span>
                             {% endif %}
@@ -91,7 +91,7 @@
                     {% for result in group.results %}
                         <li class="guc-search__item">
                             <a class="guc-search__link" href="{{ result.url }}">
-                                <strong class="guc-search__title">{{ result.titleHighlight|default(result.title)|raw }}</strong>
+                                <strong class="guc-search__title">{% if result.titleHighlight %}{{ result.titleHighlight|raw }}{% else %}{{ result.title }}{% endif %}</strong>
                                 {% if result.excerpt %}
                                     <span class="guc-search__excerpt">{{ result.excerpt|raw }}</span>
                                 {% endif %}

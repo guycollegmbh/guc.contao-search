@@ -29,10 +29,17 @@ class FuzzyQueryBuilder
             return null;
         }
 
-        // Strip FTS5 special chars from each word so parenthesis grouping stays intact
+        // Strip FTS5 special chars from each word so parenthesis grouping stays intact.
+        // Leading/trailing hyphens are dropped too: '-' is FTS5's NOT operator, and a
+        // token like '***-***' would otherwise reduce to a bare '-' and raise a syntax
+        // error when the expanded query is executed.
         $rawWords = preg_split('/\s+/u', trim($query), -1, PREG_SPLIT_NO_EMPTY);
         $words = array_values(array_filter(array_map(
-            static fn(string $w) => trim(preg_replace('/[^\p{L}\p{N}\-]/u', '', $w)),
+            static fn(string $w) => trim(preg_replace(
+                ['/[^\p{L}\p{N}\-]/u', '/^-+|-+$/u'],
+                '',
+                $w
+            )),
             $rawWords
         ), static fn(string $w) => $w !== ''));
 
@@ -46,7 +53,7 @@ class FuzzyQueryBuilder
             $maxDist = $len <= 6 ? 1 : 2;
 
             if ($len < 4) {
-                $expandedParts[]  = $word;
+                $expandedParts[]  = $this->quote($word);
                 $correctedWords[] = $word;
                 continue;
             }
@@ -68,10 +75,10 @@ class FuzzyQueryBuilder
 
             if (count($candidates) > 1) {
                 $anyExpanded      = true;
-                $expandedParts[]  = '(' . implode(' OR ', $candidates) . ')';
+                $expandedParts[]  = '(' . implode(' OR ', array_map($this->quote(...), $candidates)) . ')';
                 $correctedWords[] = $bestWord;
             } else {
-                $expandedParts[]  = $word;
+                $expandedParts[]  = $this->quote($word);
                 $correctedWords[] = $word;
             }
         }
@@ -81,8 +88,20 @@ class FuzzyQueryBuilder
         }
 
         return [
-            'ftsQuery'   => implode(' ', $expandedParts),
+            // Explicit AND: FTS5's implicit AND does not span a parenthesised group,
+            // so "wort (a OR b)" is a syntax error while "wort AND (a OR b)" is not.
+            'ftsQuery'   => implode(' AND ', $expandedParts),
             'suggestion' => implode(' ', $correctedWords),
         ];
+    }
+
+    /**
+     * Wraps a term as an FTS5 string literal. Dictionary words are letters only, but
+     * the user's own words reach the query unchanged and may be hyphenated or spell
+     * a bare operator (AND/OR/NOT/NEAR) — both are syntax errors when unquoted.
+     */
+    private function quote(string $term): string
+    {
+        return '"' . str_replace('"', '""', $term) . '"';
     }
 }

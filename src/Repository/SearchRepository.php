@@ -151,10 +151,10 @@ class SearchRepository
     public function searchGrouped(string $query, string $language = '', int $perGroup = 10, array $enabledTypes = []): array
     {
         $clean = $this->sanitizeQuery($query);
-        if (empty($clean)) {
+        if ('' === $clean) {
             return [];
         }
-        return $this->searchGroupedFts($clean . '*', $language, $perGroup, $enabledTypes);
+        return $this->searchGroupedFts($this->buildFtsQuery($clean), $language, $perGroup, $enabledTypes);
     }
 
     /** Same as searchGrouped but accepts a pre-built FTS5 query — used for fuzzy expansion. */
@@ -174,10 +174,10 @@ class SearchRepository
     public function searchByType(string $query, string $type, string $language = '', int $limit = 10, int $offset = 0): array
     {
         $clean = $this->sanitizeQuery($query);
-        if (empty($clean)) {
+        if ('' === $clean) {
             return [];
         }
-        return $this->runSearch($clean . '*', $type, $language, $limit, $offset);
+        return $this->runSearch($this->buildFtsQuery($clean), $type, $language, $limit, $offset);
     }
 
     /** Same as searchByType but accepts a pre-built FTS5 query — used for fuzzy expansion. */
@@ -189,10 +189,10 @@ class SearchRepository
     public function countByType(string $query, string $type, string $language = ''): int
     {
         $clean = $this->sanitizeQuery($query);
-        if (empty($clean)) {
+        if ('' === $clean) {
             return 0;
         }
-        return $this->runCount($clean . '*', $type, $language);
+        return $this->runCount($this->buildFtsQuery($clean), $type, $language);
     }
 
     /** Same as countByType but accepts a pre-built FTS5 query — used for fuzzy expansion. */
@@ -204,10 +204,10 @@ class SearchRepository
     public function countGrouped(string $query, string $language = '', array $enabledTypes = []): array
     {
         $clean = $this->sanitizeQuery($query);
-        if (empty($clean)) {
+        if ('' === $clean) {
             return [];
         }
-        return $this->runCountGrouped($clean . '*', $language, $enabledTypes);
+        return $this->runCountGrouped($this->buildFtsQuery($clean), $language, $enabledTypes);
     }
 
     /** Same as countGrouped but accepts a pre-built FTS5 query — used for fuzzy expansion. */
@@ -395,6 +395,33 @@ class SearchRepository
     private function sanitizeQuery(string $query): string
     {
         $query = preg_replace('/[^\p{L}\p{N}\s\-]/u', ' ', $query);
-        return trim($query);
+
+        // Hyphens carry no meaning on their own — drop them unless they sit inside a
+        // word, so "a -" does not become a token that matches nothing.
+        $query = preg_replace('/(?<![\p{L}\p{N}])-+|-+(?![\p{L}\p{N}])/u', '', $query);
+
+        return trim(preg_replace('/\s+/u', ' ', $query));
+    }
+
+    /**
+     * Turns a sanitized query into an FTS5 expression.
+     *
+     * Every token is wrapped in double quotes so it is parsed as a string literal
+     * rather than as syntax. Without this, perfectly ordinary input raises
+     * "fts5: syntax error" and the request dies with a 500:
+     *   - hyphenated words ("Bewerbungsdossier-Werkstatt", "e-mail")
+     *   - the bare operators AND, OR, NOT, NEAR
+     * The trailing '*' keeps the prefix match on the last token.
+     */
+    private function buildFtsQuery(string $clean): string
+    {
+        $tokens = preg_split('/\s+/u', $clean, -1, PREG_SPLIT_NO_EMPTY);
+
+        $quoted = array_map(
+            static fn(string $t): string => '"' . str_replace('"', '""', $t) . '"',
+            $tokens
+        );
+
+        return implode(' ', $quoted) . '*';
     }
 }

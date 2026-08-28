@@ -15,10 +15,14 @@ class ResultFormatter
         return [
             'id'             => $row['id'],
             'type'           => $row['type'],
-            'title'          => $row['title'],
+            // FileIndexer (file meta title) and MemberIndexer (first/lastname) store the
+            // title verbatim, so it may contain markup. Strip it here rather than relying
+            // on every consumer to escape — search.js uses textContent, but the results
+            // template falls back to this value when the highlight snippet is empty.
+            'title'          => strip_tags((string) $row['title']),
             'titleHighlight' => $this->sanitizeSnippet($row['titleHighlight'] ?? ''),
             'url'            => $this->sanitizeUrl($row['url'] ?? ''),
-            'badge'          => $row['badge'],
+            'badge'          => strip_tags((string) $row['badge']),
             'excerpt'        => $this->sanitizeSnippet($row['excerpt'] ?? ''),
         ];
     }

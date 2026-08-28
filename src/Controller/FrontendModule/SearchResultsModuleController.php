@@ -98,17 +98,28 @@ class SearchResultsModuleController extends AbstractFrontendModuleController
         $page   = max(1, (int) $request->query->get($pageParam, 1));
         $offset = ($page - 1) * $perPage;
 
-        $results = $this->searchRepository->searchByType($query, $type, $language, $perPage, $offset);
-        $total   = $this->searchRepository->countByType($query, $type, $language);
+        // A malformed FTS5 query must degrade to "no results", not to a 500 page.
+        try {
+            $results = $this->searchRepository->searchByType($query, $type, $language, $perPage, $offset);
+            $total   = $this->searchRepository->countByType($query, $type, $language);
+        } catch (\Throwable) {
+            $results = [];
+            $total   = 0;
+        }
 
         if ($total === 0) {
             $fuzzy = $this->fuzzyQueryBuilder->build($query);
             if ($fuzzy !== null) {
-                $results = $this->searchRepository->searchByTypeFts($fuzzy['ftsQuery'], $type, $language, $perPage, $offset);
-                $total   = $this->searchRepository->countByTypeFts($fuzzy['ftsQuery'], $type, $language);
+                try {
+                    $results = $this->searchRepository->searchByTypeFts($fuzzy['ftsQuery'], $type, $language, $perPage, $offset);
+                    $total   = $this->searchRepository->countByTypeFts($fuzzy['ftsQuery'], $type, $language);
 
-                if ($total > 0) {
-                    $template->set('fuzzy', $fuzzy['suggestion']);
+                    if ($total > 0) {
+                        $template->set('fuzzy', $fuzzy['suggestion']);
+                    }
+                } catch (\Throwable) {
+                    $results = [];
+                    $total   = 0;
                 }
             }
         }
