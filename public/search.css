@@ -534,7 +534,7 @@
 .guc-search__layer-inner {
     position: relative;
     width: 100%;
-    max-width: 720px;
+    max-width: 1100px;
     margin-top: 8vh;
     padding-top: 44px;
 }
