@@ -591,6 +591,12 @@
     border-color: #e30613;
 }
 
+/* Kein Löschen-Button im Overlay. Nur ausgeblendet, nicht aus dem Template
+   entfernt — search.js greift auf das Element zu. */
+.guc-search__layer .guc-search__clear {
+    display: none;
+}
+
 /* Im Layer fliesst die Trefferliste im Normalfluss statt als Dropdown */
 .guc-search__layer .guc-search__results {
     position: static;
@@ -598,9 +604,9 @@
     min-width: 0;
     max-height: none;
     border: 0;
-    border-radius: 0;
+    border-radius: 4px; /* wie .guc-search__input */
     box-shadow: none;
-    overflow: visible;
+    overflow: hidden;   /* weisse Tabs/Hover-Flächen sonst eckig über dem Radius */
 }
 
 @media (max-width: 767px) {
