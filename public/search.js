@@ -119,6 +119,7 @@
             // ── Fullscreen overlay ────────────────────────────────────────────
 
             let scrollLock = '';
+            let backdrop   = null;
 
             if (overlay && toggleBtn) {
                 // position:fixed resolves against the nearest ancestor with a
@@ -127,6 +128,16 @@
                 overlay.id = uid + 'overlay';
                 toggleBtn.setAttribute('aria-controls', overlay.id);
                 toggleBtn.setAttribute('aria-expanded', 'false');
+                // The tinted backdrop is a sibling, not a child, of the layer: the
+                // layer is a stacking context (z-index, isolation), and
+                // mix-blend-mode never reaches past one — the gradient would blend
+                // with nothing, and blending the layer itself would wash out the
+                // results. As a direct child of <body> it multiplies with the page.
+                backdrop = document.createElement('div');
+                backdrop.className = 'guc-search__backdrop';
+                backdrop.hidden = true;
+                backdrop.setAttribute('aria-hidden', 'true');
+                document.body.appendChild(backdrop);
                 document.body.appendChild(overlay);
 
                 // A theme element (often an <img>) is neither focusable nor
@@ -169,6 +180,7 @@
             }
 
             function openOverlay() {
+                backdrop.hidden = false;
                 overlay.hidden = false;
                 toggleBtn.setAttribute('aria-expanded', 'true');
                 scrollLock = document.body.style.overflow;
@@ -179,6 +191,7 @@
             function closeOverlay() {
                 if (overlay.hidden) return;
                 overlay.hidden = true;
+                backdrop.hidden = true;
                 toggleBtn.setAttribute('aria-expanded', 'false');
                 document.body.style.overflow = scrollLock;
                 input.value = '';
