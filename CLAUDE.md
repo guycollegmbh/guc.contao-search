@@ -314,7 +314,7 @@ Das Suchfeld-Markup liegt für beide Layouts in einem einzigen Partial
 (`templates/frontend_module/_search_field.html.twig`, eingebunden über `@GucSearch/`),
 damit die Varianten nicht auseinanderlaufen können.
 
-**Zwei Fallstricke, die der Overlay-Modus umgeht:**
+**Drei Fallstricke, die der Overlay-Modus umgeht:**
 
 1. `search.js` hängt `.guc-search__layer` beim Init an `<body>`. `position: fixed` löst
    sonst gegen den nächsten Vorfahren mit `transform`/`filter`/`perspective` auf — bei
@@ -324,6 +324,12 @@ damit die Varianten nicht auseinanderlaufen können.
    überstimmen); nach dem Verschieben ans `<body>` ist der Layer kein Nachfahre des
    Widgets mehr und wäre sonst komplett unstyled. `initSearch()` selektiert darum
    `.guc-search:not(.guc-search__layer)`, damit der Layer nicht als eigenes Widget initialisiert wird.
+
+3. Der rote Verlauf hinter dem Overlay ist ein eigenes `.guc-search__backdrop` (von
+   `search.js` ans `<body>` gehängt), **nicht** der Hintergrund des Layers. Der Layer ist
+   ein Stacking-Context (`z-index`, `isolation: isolate`), und `mix-blend-mode: multiply`
+   wirkt nie über dessen Grenze hinaus. Farbe/Modus im Theme überschreibbar via
+   `--guc-search-backdrop` und `--guc-search-backdrop-blend`.
 
 **Overlay-Interaktion:** ESC und Backdrop-Klick schliessen, Fokus wandert beim Öffnen
 ins Feld und beim Schliessen zurück auf die Lupe, `document.body.style.overflow` wird
