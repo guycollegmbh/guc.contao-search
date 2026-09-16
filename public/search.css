@@ -536,8 +536,8 @@
     inset: 0;
     z-index: 9998;
     pointer-events: none;
-    background: var(--guc-search-backdrop, linear-gradient(54deg, rgb(227, 11, 22) 0%, rgb(238, 123, 169) 100%));
-    mix-blend-mode: var(--guc-search-backdrop-blend, multiply);
+    background: var(--guc-search-backdrop, linear-gradient(54deg, hsl(240deg 1.79% 11.06%) 0%, #444 100%));
+    opacity: 0.9;
 }
 
 .guc-search__backdrop[hidden] {
